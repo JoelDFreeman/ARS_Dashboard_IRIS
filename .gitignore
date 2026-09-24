@@ -1,0 +1,21 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+publish/
+
+# Visual Studio / IDE
+.vs/
+*.user
+
+# Runtime / local data
+App_Data/
+usersettings/
+
+# Local MCP config
+.mcp.json
+
+# Local development configuration (kept locally, not tracked)
+appsettings.Development.json
+
+# GraphPerfTest moved to its own repository (kept locally, not tracked)
+GraphPerfTest/

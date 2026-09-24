@@ -1,0 +1,306 @@
+﻿using System.Security.Claims;
+using ActiveRolesDashboard.Models;
+using ActiveRolesDashboard.Services;
+using ActiveRolesDashboard.Services.Reporting;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using QuestPDF.Infrastructure;
+
+// One-time secret protection utility (handled BEFORE the web host is built so it can
+// never fall through to app.Run()):
+//   dotnet ActiveRolesDashboard.dll --protect-secret "<password>"
+// Encrypts the given service-account password with the SAME Data Protection key ring
+// (application name + App_Data\DataProtectionKeys path) the app uses at runtime, then
+// prints the value to paste into ActiveRoles:ServiceAccount:ProtectedPassword and exits.
+if (args.Contains("--protect-secret", StringComparer.OrdinalIgnoreCase))
+{
+    var idx = Array.FindIndex(args, a => string.Equals(a, "--protect-secret", StringComparison.OrdinalIgnoreCase));
+    var plaintext = idx >= 0 && idx + 1 < args.Length ? args[idx + 1] : null;
+    if (string.IsNullOrEmpty(plaintext))
+    {
+        if (Console.IsInputRedirected)
+        {
+            Console.Error.WriteLine("No interactive console detected. Pass the password as an argument:");
+            Console.Error.WriteLine("    dotnet ActiveRolesDashboard.dll --protect-secret \"<password>\"");
+            return;
+        }
+
+        Console.Write("Enter service-account password to protect: ");
+        plaintext = Console.ReadLine();
+    }
+
+    if (string.IsNullOrEmpty(plaintext))
+    {
+        Console.Error.WriteLine("No password provided. Nothing to protect.");
+        Console.Error.WriteLine("Usage: dotnet ActiveRolesDashboard.dll --protect-secret \"<password>\"");
+        return;
+    }
+
+    // Build a minimal DataProtection provider matching the app's runtime configuration.
+    // Use the content root (current working directory) rather than AppContext.BaseDirectory
+    // so this utility shares the SAME key ring the web app uses at runtime
+    // (see the runtime AddDataProtection() configuration below). Otherwise a value protected
+    // here (under bin\...) could not be decrypted by the running app (under the content root).
+    var keysPath = Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "DataProtectionKeys");
+    Directory.CreateDirectory(keysPath);
+    using var dpServices = new ServiceCollection()
+        .AddDataProtection()
+        .SetApplicationName("ActiveRolesDashboard")
+        .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
+        .Services
+        .BuildServiceProvider();
+
+    var protector = new ServiceAccountSecretProtector(
+        dpServices.GetRequiredService<IDataProtectionProvider>());
+
+    var encrypted = protector.Protect(plaintext);
+    Console.WriteLine();
+    Console.WriteLine("Protected password (copy into appsettings ActiveRoles:ServiceAccount:ProtectedPassword):");
+    Console.WriteLine(encrypted);
+    return;
+}
+
+// QuestPDF Community license (free for organizations under the revenue threshold).
+QuestPDF.Settings.License = LicenseType.Community;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<ActiveRolesConfig>(builder.Configuration.GetSection("ActiveRoles"));
+
+// Data Protection: persist the key ring under the content root so the encrypted
+// service-account secret can be decrypted across restarts and deployments. The service
+// account password is stored encrypted in appsettings (never plaintext) and unprotected
+// at runtime via ServiceAccountSecretProtector.
+var dataProtectionKeysPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys");
+Directory.CreateDirectory(dataProtectionKeysPath);
+builder.Services.AddDataProtection()
+    .SetApplicationName("ActiveRolesDashboard")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
+
+builder.Services.AddSingleton<ActiveRolesDashboard.Services.ServiceAccountSecretProtector>();
+builder.Services.AddSingleton<ActiveRolesDashboard.Services.RolePermissionProtector>();
+
+var arConfig = builder.Configuration.GetSection("ActiveRoles").Get<ActiveRolesConfig>()!;
+
+builder.Services.AddHttpClient("RSTS")
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = arConfig.IgnoreSslErrors
+            ? HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            : null
+    });
+
+builder.Services.AddHttpClient("ActiveRolesApi")
+    .ConfigureHttpClient(client =>
+    {
+        // Large directories can take longer than the HttpClient default (100s) to return
+        // the first page of an expensive sub-scope search, causing a TaskCanceledException
+        // and a silently-empty KPI. Use a configurable, higher timeout.
+        var timeoutSeconds = arConfig.ApiTimeoutSeconds > 0 ? arConfig.ApiTimeoutSeconds : 300;
+        client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+    })
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = arConfig.IgnoreSslErrors
+            ? HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            : null
+    });
+
+builder.Services.AddSingleton<RstsAuthService>();
+builder.Services.AddSingleton<ActiveRolesService>();
+builder.Services.AddSingleton<DiagnosticsService>();
+builder.Services.AddSingleton<DiagnosticsTargetProvider>();
+builder.Services.AddSingleton<RoleService>();
+builder.Services.AddSingleton<UserSettingsService>();
+builder.Services.AddSingleton<SnapshotService>();
+builder.Services.AddSingleton<AssessmentService>();
+builder.Services.AddSingleton<MitreExposureService>();
+
+// Shared-superset cache, service-account collection, and per-user AR permission filtering.
+builder.Services.AddSingleton<DashboardCacheHolder>();
+builder.Services.AddSingleton<ServiceAccountTokenProvider>();
+builder.Services.AddSingleton<ArPermissionModelService>();
+builder.Services.AddSingleton<PerUserDashboardFilter>();
+builder.Services.AddSingleton<FilterValidationHarness>();
+builder.Services.AddSingleton<SupersetLoaderHostedService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<SupersetLoaderHostedService>());
+
+// Reporting / export services.
+builder.Services.AddSingleton<ReportBuilder>();
+builder.Services.AddSingleton<AssessmentReportBuilder>();
+builder.Services.AddSingleton<IReportExporter, PdfReportExporter>();
+builder.Services.AddSingleton<IReportExporter, WordReportExporter>();
+builder.Services.AddSingleton<IReportExporter, ExcelReportExporter>();
+builder.Services.AddSingleton<ReportExporterFactory>();
+
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Login";
+        options.LogoutPath = "/Logout";
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.Cookie.Path = "/";
+        options.Events.OnRedirectToLogin = context =>
+        {
+            var returnUrl = context.Request.Path + context.Request.QueryString;
+            var pathBase = context.Request.PathBase.Value ?? "";
+            if (returnUrl == "" || returnUrl == "/")
+            {
+                returnUrl = "/";
+            }
+            var loginUrl = $"{pathBase}/Login?ReturnUrl={Uri.EscapeDataString(pathBase + returnUrl)}";
+            context.Response.Redirect(loginUrl);
+            return Task.CompletedTask;
+        };
+        options.Events.OnSigningIn = context =>
+        {
+            context.CookieOptions.Path = "/";
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToReturnUrl = context =>
+        {
+            // Suppress auto-redirect; let the login handler control navigation.
+            return Task.CompletedTask;
+        };
+    });
+
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromHours(8);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.Path = "/";
+});
+
+// Per-user, in-process cache for the large dashboard summary/overview blobs (previously stored
+// in Session, which bloated the session entry and dropped the auth token). Requires IMemoryCache.
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<PerUserSummaryCache>();
+builder.Services.AddSingleton<DirectoryFactsResolver>();
+
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+builder.Services.AddRazorPages(options =>
+{
+    options.Conventions.ConfigureFilter(new Microsoft.AspNetCore.Mvc.IgnoreAntiforgeryTokenAttribute());
+}).AddViewLocalization();
+builder.Services.AddControllers();
+
+// Localization: supported UI cultures. English only for now; add cultures here as
+// translations become available. The active culture is chosen per-user (see below).
+builder.Services.Configure<Microsoft.AspNetCore.Builder.RequestLocalizationOptions>(options =>
+{
+    var supported = ActiveRolesDashboard.Models.SupportedLanguage.All
+        .Select(l => new System.Globalization.CultureInfo(l.Code))
+        .ToList();
+    options.DefaultRequestCulture = new Microsoft.AspNetCore.Localization.RequestCulture(
+        ActiveRolesDashboard.Models.SupportedLanguage.DefaultCode);
+    options.SupportedCultures = supported;
+    options.SupportedUICultures = supported;
+
+    // Resolve culture from the authenticated user's saved language, then the
+    // configured default, before falling back to the built-in providers.
+    options.RequestCultureProviders.Insert(0,
+        new ActiveRolesDashboard.Services.UserSettingsRequestCultureProvider());
+});
+
+var app = builder.Build();
+
+// Wire the static KPI/category localizer so KpiInfo/CategoryInfo display names
+// (which are static readonly and cannot use DI) resolve from resources at read-time.
+ActiveRolesDashboard.Services.KpiLocalizer.Initialize(
+    app.Services.GetRequiredService<Microsoft.Extensions.Localization.IStringLocalizerFactory>());
+
+// Wire the static assessment localizer so persisted rule titles/recommendations/categories
+// (identified by RuleId) resolve from resources at render-time in the current UI culture.
+ActiveRolesDashboard.Services.AssessmentLocalizer.Initialize(
+    app.Services.GetRequiredService<Microsoft.Extensions.Localization.IStringLocalizerFactory>());
+
+// PathBase: set manually for reverse-proxy/Kestrel scenarios.
+// IIS in-process/out-of-process hosting sets PathBase automatically for sub-applications.
+var pathBase = app.Configuration["PathBase"];
+if (!string.IsNullOrEmpty(pathBase))
+{
+    app.UsePathBase(pathBase);
+}
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseRouting();
+app.UseSession();
+app.UseAuthentication();
+app.UseAuthorization();
+// Must run after authentication so the culture provider can read the
+// authenticated user's saved language from their user settings.
+app.UseRequestLocalization(app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Builder.RequestLocalizationOptions>>().Value);
+
+// First-run redirect: if ApiBaseUrl is not configured, send to Setup wizard
+app.Use(async (context, next) =>
+{
+    var config = context.RequestServices.GetRequiredService<IOptionsMonitor<ActiveRolesConfig>>().CurrentValue;
+    var path = context.Request.Path.Value ?? "";
+    if (string.IsNullOrWhiteSpace(config.ApiBaseUrl) && !path.StartsWith("/Setup", StringComparison.OrdinalIgnoreCase) && !path.StartsWith("/css", StringComparison.OrdinalIgnoreCase) && !path.StartsWith("/js", StringComparison.OrdinalIgnoreCase) && !path.StartsWith("/lib", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.Redirect($"{context.Request.PathBase}/Setup");
+        return;
+    }
+    await next();
+});
+
+// Cache readiness endpoint: polled by the login/wait screen while the shared superset is
+// being built at startup. Returns the current cache state so the UI can show "Building cache…"
+// until Ready. Anonymous by design (no user data is exposed, only lifecycle status).
+// Deliberately does NOT expose LastError: the raw fault message can contain internal hostnames,
+// ports and exception text, which must not be disclosed to unauthenticated visitors. The generic
+// "faulted" flag is enough for the login screen; admins see the detailed reason via the
+// authenticated dashboard refresh-status handler.
+app.MapGet("/cache/status", (DashboardCacheHolder cache) => Results.Json(new
+{
+    state = cache.State.ToString(),
+    ready = cache.IsReady,
+    faulted = cache.State == CacheState.Faulted,
+    collectedAtUtc = cache.CollectedAtUtc
+})).AllowAnonymous();
+
+// Admin-only diagnostics: validate that the per-user filter matches an independently derived
+// ground truth for a given principal (soundness + completeness per KPI family). Guarded by the
+// authenticated session's IsActiveRolesAdmin flag; requires the shared cache to be ready.
+app.MapGet("/diagnostics/validate-filter", async (
+    string username,
+    HttpContext http,
+    FilterValidationHarness harness,
+    CancellationToken ct) =>
+{
+    if (http.User.Identity?.IsAuthenticated != true)
+        return Results.Unauthorized();
+
+    var isAdmin = bool.TryParse(http.Session.GetString("IsActiveRolesAdmin"), out var a) && a;
+    if (!isAdmin)
+        return Results.Forbid();
+
+    if (string.IsNullOrWhiteSpace(username))
+        return Results.BadRequest(new { error = "username is required" });
+
+    try
+    {
+        var result = await harness.ValidateAsync(username, ct);
+        return Results.Json(result);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.Json(new { error = ex.Message }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+}).RequireAuthorization();
+
+app.MapRazorPages();
+app.MapControllers();
+
+app.Run();

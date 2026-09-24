@@ -1,0 +1,667 @@
+@page
+@model ActiveRolesDashboard.Pages.AssessmentsModel
+@inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer Localizer
+@{
+    ViewData["Title"] = "Assessment";
+    Layout = null;
+    var pathBase = HttpContext.Request.PathBase.Value ?? "";
+}
+<!DOCTYPE html>
+<html lang="@System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName">
+<head>
+    <meta charset="utf-8" />
+    <base href="@Url.Content("~/")" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Active Roles Dashboard - Assessment</title>
+    <link rel="stylesheet" href="css/dashboard.css" asp-append-version="true" />
+</head>
+<body>
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p>@Localizer["RunningAssessment"]</p>
+    </div>
+</div>
+<div class="page">
+    <div class="sticky-head">
+    @{
+        ViewData["HeaderKey"] = "Assessments";
+        ViewData["RefreshUrl"] = "/Assessments"; ViewData["ShowHome"] = true;
+    }
+    <partial name="_DashboardHeader" />
+
+    <a href="@(pathBase)/?cached=true" class="back-link">&larr; @Localizer["BackToDashboard"]</a>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        <div class="snap-status">@Model.StatusMessage</div>
+    }
+
+    @if (Model.EntraMembershipDataPending)
+    {
+        <div class="membership-warning" role="status">
+            @Localizer["MembershipPendingWarning"]
+        </div>
+    }
+
+    <div class="snap-panels">
+        <section class="asmt-card asmt-runbar">
+            <h2>@Localizer["RunAssessment"]</h2>
+            <form method="post" asp-page-handler="Run" class="asmt-run-form" id="asmtRunForm">
+                <label class="asmt-run-field">
+                    <span>@Localizer["AssessmentType"]</span>
+                    <select name="Type" class="snap-input" id="asmtTypeSelect" data-base="@(pathBase)/Assessments" data-membership-pending="@(Model.EntraMembershipDataPending ? "true" : "false")">
+                        @foreach (var t in Models.AssessmentTypeInfo.All.OrderBy(x => Models.AssessmentTypeInfo.DisplayName(x), StringComparer.OrdinalIgnoreCase))
+                        {
+                            <option value="@t" selected="@(t == Model.Type)" data-entra-dependent="@(Models.AssessmentRuleLibrary.DependsOnEntraGroupMembership(t) ? "true" : "false")">@Models.AssessmentTypeInfo.DisplayName(t)</option>
+                        }
+                    </select>
+                </label>
+                <label class="asmt-run-field">
+                    <span>@Localizer["LabelOptional"]</span>
+                    <input type="text" name="label" maxlength="80" placeholder="@Localizer["LabelPlaceholder"]" class="snap-input" />
+                </label>
+                <button type="submit" class="snap-btn snap-btn-primary" id="asmtRunBtn"@(Model.CanRunAndSaveAssessments ? "" : " disabled")>@Localizer["RunAndSave"]</button>
+            </form>
+        </section>
+
+        <section class="asmt-card">
+            <h2>@Localizer["CompareRuns", Models.AssessmentTypeInfo.DisplayName(Model.Type)]</h2>
+            @if (Model.History.Count < 2)
+            {
+                <p class="snap-hint">@Localizer["CompareHint", Models.AssessmentTypeInfo.DisplayName(Model.Type)]</p>
+            }
+            else
+            {
+                <form method="get" class="snap-compare-form" id="asmtCompareForm">
+                    <input type="hidden" name="Type" value="@Model.Type" />
+                    <label>
+                        <span>@Localizer["Baseline"]</span>
+                        <select name="FromId" class="snap-input" id="asmtFromId">
+                            @foreach (var h in Model.History)
+                            {
+                                <option value="@h.Id" selected="@(h.Id == Model.FromId)">@AssessmentsModel_Label(h, Localizer)</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        <span>@Localizer["CompareTo"]</span>
+                        <select name="ToId" class="snap-input" id="asmtToId">
+                            <option value="current" selected="@(string.Equals(Model.ToId, "current", StringComparison.OrdinalIgnoreCase))">@Localizer["CurrentLive"]</option>
+                            @foreach (var h in Model.History)
+                            {
+                                <option value="@h.Id" selected="@(h.Id == Model.ToId)">@AssessmentsModel_Label(h, Localizer)</option>
+                            }
+                        </select>
+                    </label>
+                    <button type="submit" class="snap-btn snap-btn-primary" id="asmtCompareBtn"@(Model.CanCompareAssessments ? "" : " disabled")>@Localizer["Compare"]</button>
+                </form>
+            }
+        </section>
+    </div>
+
+    @{
+        var asmtScopeNote = Models.AssessmentTypeInfo.Description(Model.Type);
+    }
+    @if (!string.IsNullOrWhiteSpace(asmtScopeNote))
+    {
+        <div class="asmt-scope-note" role="note">
+            <strong>@Localizer["ScopeDisclaimer"]</strong> @asmtScopeNote
+        </div>
+    }
+
+    @if (Model.History.Count >= 2)
+    {
+        var trend = Model.History.OrderBy(h => h.GeneratedUtc).ToList();
+        var trendLabels = System.Text.Json.JsonSerializer.Serialize(trend.Select(h => h.GeneratedUtc.ToString("MM-dd HH:mm")));
+        var trendScores = System.Text.Json.JsonSerializer.Serialize(trend.Select(h => h.Score));
+        var trendFails = System.Text.Json.JsonSerializer.Serialize(trend.Select(h => h.FailCount));
+        var trendPass = System.Text.Json.JsonSerializer.Serialize(trend.Select(h => h.PassCount));
+        var trendWarn = System.Text.Json.JsonSerializer.Serialize(trend.Select(h => h.WarnCount));
+        <section class="asmt-card">
+            <h2>@Localizer["ScoreTrend", Models.AssessmentTypeInfo.DisplayName(Model.Type)]</h2>
+            <p class="snap-hint">@Localizer["ScoreTrendHint", trend.Count]</p>
+            <div class="asmt-trend-wrap">
+                <canvas id="assessmentTrendChart"
+                        data-labels="@trendLabels"
+                        data-scores="@trendScores"
+                        data-fails="@trendFails"></canvas>
+            </div>
+        </section>
+        <section class="asmt-card">
+            <h2>@Localizer["CheckComposition", Models.AssessmentTypeInfo.DisplayName(Model.Type)]</h2>
+            <p class="snap-hint">@Localizer["CheckCompositionHint"]</p>
+            <div class="asmt-trend-wrap">
+                <canvas id="assessmentCompositionChart"
+                        data-labels="@trendLabels"
+                        data-pass="@trendPass"
+                        data-warn="@trendWarn"
+                        data-fails="@trendFails"></canvas>
+            </div>
+        </section>
+    }
+
+    @if (Model.History.Count > 0)
+    {
+        <section class="asmt-card">
+            <h2>@Localizer["History", Models.AssessmentTypeInfo.DisplayName(Model.Type)]</h2>
+            <table class="snap-table">
+                <thead>
+                    <tr>
+                        <th>@Localizer["Col_WhenUtc"]</th>
+                        <th>@Localizer["Col_Label"]</th>
+                        <th>@Localizer["Col_By"]</th>
+                        <th>@Localizer["Col_Grade"]</th>
+                        <th class="snap-num">@Localizer["Col_Score"]</th>
+                        <th class="snap-num">@Localizer["Col_Fail"]</th>
+                        <th class="snap-num">@Localizer["Col_Warn"]</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var h in Model.History)
+                    {
+                        <tr class="@(h.Id == Model.Id ? "asmt-hist-active" : "")">
+                            <td>@h.GeneratedUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@(string.IsNullOrWhiteSpace(h.Label) ? Localizer["Unlabelled"].Value : h.Label)</td>
+                            <td>@(h.GeneratedBy ?? "—")</td>
+                            <td><span class="asmt-grade-badge asmt-grade-@h.Grade.ToLowerInvariant()">@h.Grade</span></td>
+                            <td class="snap-num">@h.Score</td>
+                            <td class="snap-num">@h.FailCount</td>
+                            <td class="snap-num">@h.WarnCount</td>
+                            <td class="snap-row-actions">
+                                <a href="@(pathBase)/Assessments?Type=@Model.Type&Id=@h.Id" class="snap-icon-btn" title="@Localizer["ViewAssessment"]" aria-label="@Localizer["ViewAssessment"]">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                                </a>
+                                @if (Model.CanCompareAssessments)
+                                {
+                                    <a href="@(pathBase)/Assessments?Type=@Model.Type&FromId=@h.Id&ToId=current" class="snap-icon-btn asmt-compare-link" title="@Localizer["CompareToCurrent"]" aria-label="@Localizer["CompareToCurrent"]">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+                                    </a>
+                                }
+                                @if (Model.CanDeleteAssessments)
+                                {
+                                    <form method="post" asp-page-handler="Delete" class="snap-inline-form" onsubmit="return confirm('@Localizer["ConfirmDelete"]');">
+                                        <input type="hidden" name="id" value="@h.Id" />
+                                        <input type="hidden" name="Type" value="@Model.Type" />
+                                        <button type="submit" class="snap-icon-btn snap-icon-danger" title="@Localizer["DeleteAssessment"]" aria-label="@Localizer["DeleteAssessment"]">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    }
+
+    @if (Model.Comparison != null)
+    {
+        var cmp = Model.Comparison;
+        <section class="asmt-card">
+            <h2>
+                @Localizer["Comparison"]
+                <span class="snap-cmp-caption">
+                    @AssessmentsModel_Label(cmp.From, Localizer)
+                    &rarr;
+                    @(cmp.ToIsCurrent ? Localizer["CurrentLive"].Value : AssessmentsModel_Label(cmp.To, Localizer))
+                </span>
+            </h2>
+
+            <div class="snap-summary">
+                <span class="snap-pill">
+                    @Localizer["ScorePill"] @cmp.To.Score
+                    @if (cmp.ScoreChange != 0)
+                    {
+                        <strong class="@(cmp.ScoreChange > 0 ? "snap-good" : "snap-bad")">(@(cmp.ScoreChange > 0 ? "+" : "")@cmp.ScoreChange)</strong>
+                    }
+                    &middot; @Localizer["Grade"] @cmp.From.Grade &rarr; @cmp.To.Grade
+                </span>
+                <span class="snap-pill snap-pill-good">@cmp.ImprovedCount @Localizer["Improved"]</span>
+                <span class="snap-pill snap-pill-bad">@cmp.WorsenedCount @Localizer["Regressed"]</span>
+                <span class="snap-pill">@cmp.UnchangedCount @Localizer["Unchanged"]</span>
+                @if (cmp.AddedCount > 0) { <span class="snap-pill">@cmp.AddedCount @Localizer["Added"]</span> }
+                @if (cmp.RemovedCount > 0) { <span class="snap-pill">@cmp.RemovedCount @Localizer["Removed"]</span> }
+            </div>
+
+            @foreach (var category in cmp.Categories)
+            {
+                <h4 class="snap-cmp-category">@Services.AssessmentLocalizer.Category(category.Name)</h4>
+                <table class="snap-table snap-cmp-table">
+                    <thead>
+                        <tr>
+                            <th>@Localizer["Col_Check"]</th>
+                            <th>@Localizer["Baseline"]</th>
+                            <th>@(cmp.ToIsCurrent ? Localizer["Current"].Value : Localizer["Compare"].Value)</th>
+                            <th class="snap-num">@Localizer["Col_Count"]</th>
+                            <th>@Localizer["Col_Change"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in category.Rows)
+                        {
+                            <tr class="@AssessmentsModel_RowClass(row.Sentiment)">
+                                <td>@Services.AssessmentLocalizer.Title(row.RuleId, row.Title)</td>
+                                <td><span class="asmt-status-badge @AssessmentsModel_StatusClass(row.FromStatus)">@AssessmentsModel_StatusText(row.FromStatus, Localizer)</span></td>
+                                <td><span class="asmt-status-badge @AssessmentsModel_StatusClass(row.ToStatus)">@AssessmentsModel_StatusText(row.ToStatus, Localizer)</span></td>
+                                <td class="snap-num">
+                                    @(row.FromCount?.ToString() ?? "\u2014") &rarr; @(row.ToCount?.ToString() ?? "\u2014")
+                                </td>
+                                <td>
+                                    @switch (row.Delta)
+                                    {
+                                        case Models.CheckDelta.Improved: <span class="snap-good">@Localizer["Delta_Improved"]</span> break;
+                                        case Models.CheckDelta.Worsened: <span class="snap-bad">@Localizer["Delta_Regressed"]</span> break;
+                                        case Models.CheckDelta.Added: <span>@Localizer["Delta_Added"]</span> break;
+                                        case Models.CheckDelta.Removed: <span>@Localizer["Delta_Removed"]</span> break;
+                                        default: <span class="snap-muted">@Localizer["Delta_NoChange"]</span> break;
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </section>
+    }
+
+    @if (Model.Assessment == null)
+    {
+        <div class="asmt-card"><p class="snap-hint">@Localizer["RunToSeeResults"]</p></div>
+    }
+    else
+    {
+        var a = Model.Assessment;
+        <section class="asmt-card asmt-scorecard">
+            <div class="asmt-grade asmt-grade-@a.Grade.ToLowerInvariant()">@a.Grade</div>
+            <div class="asmt-score-body">
+                <div class="asmt-score-line"><span class="asmt-score-num">@a.Score</span><span class="asmt-score-max">/ 100</span></div>
+                <div class="asmt-score-caption">@Localizer["ScoreCaption", Models.AssessmentTypeInfo.DisplayName(a.Type), a.TotalChecks, a.GeneratedUtc.ToString("yyyy-MM-dd HH:mm")]</div>
+                <div class="snap-summary">
+                    <span class="snap-pill snap-pill-good">@a.PassCount @Localizer["Passed"]</span>
+                    <span class="asmt-pill asmt-pill-warn">@a.WarnCount @Localizer["Warnings"]</span>
+                    <span class="snap-pill snap-pill-bad">@a.FailCount @Localizer["Failed"]</span>
+                    @if (a.NotApplicableCount > 0) { <span class="snap-pill">@a.NotApplicableCount @Localizer["NotApplicableShort"]</span> }
+                </div>
+            </div>
+            @if (Model.CanExportAssessments)
+            {
+                <div class="asmt-export">
+                    <form method="post" asp-page-handler="Export" class="snap-inline-form">
+                        <input type="hidden" name="id" value="@a.Id" />
+                        <input type="hidden" name="Type" value="@a.Type" />
+                        <input type="hidden" name="format" value="Pdf" />
+                        <button type="submit" class="snap-icon-btn" title="@Localizer["SaveAsPdf"]" aria-label="@Localizer["SaveAsPdf"]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <span class="asmt-export-label">PDF</span>
+                        </button>
+                    </form>
+                    <form method="post" asp-page-handler="Export" class="snap-inline-form">
+                        <input type="hidden" name="id" value="@a.Id" />
+                        <input type="hidden" name="Type" value="@a.Type" />
+                        <input type="hidden" name="format" value="Word" />
+                        <button type="submit" class="snap-icon-btn" title="@Localizer["SaveAsWord"]" aria-label="@Localizer["SaveAsWord"]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+                            <span class="asmt-export-label">Word</span>
+                        </button>
+                    </form>
+                </div>
+            }
+        </section>
+
+        @foreach (var category in a.Categories)
+        {
+            <section class="asmt-card">
+                <h2 class="asmt-cat-title">
+                    @Services.AssessmentLocalizer.Category(category.Name)
+                    <span class="asmt-cat-counts">
+                        @if (category.FailCount > 0) { <span class="asmt-tag asmt-tag-fail">@category.FailCount @Localizer["Tag_Fail"]</span> }
+                        @if (category.WarnCount > 0) { <span class="asmt-tag asmt-tag-warn">@category.WarnCount @Localizer["Tag_Warn"]</span> }
+                        <span class="asmt-tag asmt-tag-pass">@category.PassCount @Localizer["Tag_Pass"]</span>
+                    </span>
+                </h2>
+                <table class="snap-table asmt-table">
+                    <colgroup>
+                        <col class="asmt-col-check" />
+                        <col class="asmt-col-sev" />
+                        <col class="asmt-col-count" />
+                        <col class="asmt-col-status" />
+                        <col class="asmt-col-reco" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>@Localizer["Col_Check"]</th>
+                            <th>@Localizer["Col_Severity"]</th>
+                            <th class="snap-num">@Localizer["Col_Count"]</th>
+                            <th>@Localizer["Col_Status"]</th>
+                            <th>@Localizer["Col_Recommendation"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in category.Checks)
+                        {
+                            <tr class="asmt-row asmt-row-@c.Status.ToString().ToLowerInvariant()">
+                                <td>@Services.AssessmentLocalizer.Title(c.RuleId, c.Title)</td>
+                                <td><span class="asmt-sev asmt-sev-@c.Severity.ToString().ToLowerInvariant()">@c.Severity</span></td>
+                                <td class="snap-num">@(c.Error != null ? "—" : c.Count.ToString())</td>
+                                <td>
+                                    <span class="asmt-status asmt-status-@c.Status.ToString().ToLowerInvariant()">
+                                        @(c.Status == Models.AssessmentStatus.NotApplicable ? Localizer["Status_Na"].Value : c.Status.ToString())
+                                    </span>
+                                </td>
+                                <td class="asmt-reco">
+                                    @if (c.Error != null)
+                                    {
+                                        <span class="asmt-err">@c.Error</span>
+                                    }
+                                    else if (c.Status != Models.AssessmentStatus.Pass)
+                                    {
+                                        @Services.AssessmentLocalizer.Recommendation(c.RuleId, c.Recommendation)
+                                    }
+                                    else
+                                    {
+                                        <span class="asmt-ok">@Localizer["NoActionRequired"]</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </section>
+        }
+    }
+    @await Html.PartialAsync("_EntraMembershipConfig")
+</div>
+<div id="assessments-i18n"
+     data-run-blocked="@Localizer["RunBlockedTitle"]"
+     data-chart-score="@Localizer["Chart_Score"]"
+     data-chart-failing="@Localizer["Chart_FailingChecks"]"
+     data-chart-pass="@Localizer["Chart_Pass"]"
+     data-chart-warning="@Localizer["Chart_Warning"]"
+     data-chart-fail="@Localizer["Chart_Fail"]"
+     data-chart-checks="@Localizer["Chart_Checks"]"
+     hidden></div>
+<script src="js/chart.umd.min.js" asp-append-version="true"></script>
+<script>
+    (function () {
+        // Localized strings emitted by the #assessments-i18n element (English fallbacks kept).
+        var i18nEl = document.getElementById('assessments-i18n');
+        function t(attr, fallback) {
+            var v = i18nEl && i18nEl.getAttribute(attr);
+            return (v !== null && v !== undefined && v !== '') ? v : fallback;
+        }
+        var i18n = {
+            runBlocked: t('data-run-blocked', 'Blocked: this assessment depends on Entra group membership, which is still loading.'),
+            chartScore: t('data-chart-score', 'Score'),
+            chartFailing: t('data-chart-failing', 'Failing checks'),
+            chartPass: t('data-chart-pass', 'Pass'),
+            chartWarning: t('data-chart-warning', 'Warning'),
+            chartFail: t('data-chart-fail', 'Fail'),
+            chartChecks: t('data-chart-checks', 'Checks')
+        };
+
+        // Show the loading overlay while an assessment is running.
+        var runForm = document.getElementById('asmtRunForm');
+        var overlay = document.getElementById('loadingOverlay');
+        var typeSelect = document.getElementById('asmtTypeSelect');
+        var runBtn = document.getElementById('asmtRunBtn');
+        var membershipPending = typeSelect && typeSelect.getAttribute('data-membership-pending') === 'true';
+        // Preserve a server-applied permission disable: users lacking RunAndSaveAssessments must
+        // never have the Run button re-enabled by the membership-loading sync below.
+        var runLockedByPermission = !!(runBtn && runBtn.disabled);
+
+        // True when the currently selected assessment is blocked because it depends on Entra
+        // group membership that is still loading.
+        function isRunBlocked() {
+            if (runLockedByPermission) return true;
+            if (!membershipPending || !typeSelect) return false;
+            var opt = typeSelect.options[typeSelect.selectedIndex];
+            return !!(opt && opt.getAttribute('data-entra-dependent') === 'true');
+        }
+
+        if (runForm && overlay) {
+            runForm.addEventListener('submit', function (e) {
+                // Don't run (or show the "Running Assessment" overlay) for a blocked assessment;
+                // the server would only reject it and redirect back with the guard message.
+                if (isRunBlocked()) {
+                    e.preventDefault();
+                    return;
+                }
+                overlay.classList.add('active');
+            });
+        }
+
+        // Disable Compare when baseline and compare-to are the same run.
+        var fromSel = document.getElementById('asmtFromId');
+        var toSel = document.getElementById('asmtToId');
+        var compareBtn = document.getElementById('asmtCompareBtn');
+        var compareForm = document.getElementById('asmtCompareForm');
+        if (fromSel && toSel && compareBtn) {
+            // Preserve a server-applied permission disable: users lacking CompareAssessments must
+            // never have the button re-enabled by the same-run check below.
+            var compareLockedByPermission = compareBtn.disabled;
+            var syncCompare = function () {
+                compareBtn.disabled = compareLockedByPermission || (fromSel.value === toSel.value);
+            };
+            fromSel.addEventListener('change', syncCompare);
+            toSel.addEventListener('change', syncCompare);
+            syncCompare();
+            if (compareForm && overlay) {
+                compareForm.addEventListener('submit', function () {
+                    overlay.classList.add('active');
+                });
+            }
+        }
+
+        // Reload the page for the newly selected assessment type (no run, just switch view).
+        if (typeSelect) {
+            typeSelect.addEventListener('change', function () {
+                var base = typeSelect.getAttribute('data-base') || '';
+                window.location.href = base + '?Type=' + encodeURIComponent(typeSelect.value);
+            });
+
+            // Disable "Run & save" when the selected assessment depends on Entra group
+            // membership and that membership is still loading. The server enforces the same
+            // block; this is a fast-feedback convenience only.
+            function syncRunButton() {
+                if (!runBtn) return;
+                var blocked = isRunBlocked();
+                runBtn.disabled = blocked;
+                runBtn.title = blocked
+                    ? i18n.runBlocked
+                    : '';
+            }
+            syncRunButton();
+            typeSelect.addEventListener('change', syncRunButton);
+        }
+
+        var canvas = document.getElementById('assessmentTrendChart');
+        if (!canvas || typeof Chart === 'undefined') return;
+
+        var labels = JSON.parse(canvas.dataset.labels || '[]');
+        var scores = JSON.parse(canvas.dataset.scores || '[]');
+        var fails = JSON.parse(canvas.dataset.fails || '[]');
+
+        function thresholdLine(value, color) {
+            return {
+                label: 'grade-' + value,
+                data: labels.map(function () { return value; }),
+                yAxisID: 'yScore',
+                borderColor: color,
+                borderWidth: 1,
+                borderDash: [3, 3],
+                pointRadius: 0,
+                pointHitRadius: 0,
+                fill: false,
+                tension: 0,
+                isThreshold: true
+            };
+        }
+
+        new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: i18n.chartScore,
+                        data: scores,
+                        yAxisID: 'yScore',
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                        fill: true,
+                        tension: 0.25,
+                        pointRadius: 3
+                    },
+                    {
+                        label: i18n.chartFailing,
+                        data: fails,
+                        yAxisID: 'yFails',
+                        borderColor: '#dc2626',
+                        backgroundColor: 'rgba(220, 38, 38, 0.0)',
+                        borderDash: [5, 4],
+                        tension: 0.25,
+                        pointRadius: 3
+                    },
+                    thresholdLine(90, 'rgba(5, 150, 105, 0.5)'),
+                    thresholdLine(80, 'rgba(101, 163, 13, 0.45)'),
+                    thresholdLine(70, 'rgba(217, 119, 6, 0.45)'),
+                    thresholdLine(60, 'rgba(234, 88, 12, 0.45)')
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        labels: {
+                            filter: function (item, data) {
+                                return !(data.datasets[item.datasetIndex] || {}).isThreshold;
+                            }
+                        }
+                    },
+                    tooltip: {
+                        filter: function (item) {
+                            return !(item.dataset || {}).isThreshold;
+                        }
+                    }
+                },
+                scales: {
+                    yScore: {
+                        type: 'linear',
+                        position: 'left',
+                        min: 0,
+                        max: 100,
+                        title: { display: true, text: i18n.chartScore }
+                    },
+                    yFails: {
+                        type: 'linear',
+                        position: 'right',
+                        min: 0,
+                        title: { display: true, text: i18n.chartFailing },
+                        grid: { drawOnChartArea: false },
+                        ticks: { precision: 0 }
+                    }
+                }
+            }
+        });
+
+        var compCanvas = document.getElementById('assessmentCompositionChart');
+        if (compCanvas) {
+            var compLabels = JSON.parse(compCanvas.dataset.labels || '[]');
+            var passData = JSON.parse(compCanvas.dataset.pass || '[]');
+            var warnData = JSON.parse(compCanvas.dataset.warn || '[]');
+            var failData = JSON.parse(compCanvas.dataset.fails || '[]');
+
+            new Chart(compCanvas, {
+                type: 'line',
+                data: {
+                    labels: compLabels,
+                    datasets: [
+                        {
+                            label: i18n.chartPass,
+                            data: passData,
+                            borderColor: '#059669',
+                            backgroundColor: 'rgba(5, 150, 105, 0.35)',
+                            fill: true,
+                            tension: 0.25,
+                            pointRadius: 2
+                        },
+                        {
+                            label: i18n.chartWarning,
+                            data: warnData,
+                            borderColor: '#d97706',
+                            backgroundColor: 'rgba(217, 119, 6, 0.35)',
+                            fill: true,
+                            tension: 0.25,
+                            pointRadius: 2
+                        },
+                        {
+                            label: i18n.chartFail,
+                            data: failData,
+                            borderColor: '#dc2626',
+                            backgroundColor: 'rgba(220, 38, 38, 0.35)',
+                            fill: true,
+                            tension: 0.25,
+                            pointRadius: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { stacked: true },
+                        y: {
+                            stacked: true,
+                            min: 0,
+                            title: { display: true, text: i18n.chartChecks },
+                            ticks: { precision: 0 }
+                        }
+                    }
+                }
+            });
+        }
+    })();
+</script>
+@await Html.PartialAsync("_ToastAndMembership")
+<script src="js/dashboard.js" asp-append-version="true"></script>
+</body>
+</html>
+
+@functions {
+    static string AssessmentsModel_Label(Models.AssessmentHeader h, Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer loc)
+    {
+        var label = string.IsNullOrWhiteSpace(h.Label) ? loc["Unlabelled"].Value : h.Label;
+        return $"{label} \u2014 {h.GeneratedUtc:yyyy-MM-dd HH:mm}";
+    }
+
+    static string AssessmentsModel_RowClass(Models.CheckDeltaSentiment sentiment) => sentiment switch
+    {
+        Models.CheckDeltaSentiment.Good => "snap-good",
+        Models.CheckDeltaSentiment.Bad => "snap-bad",
+        _ => ""
+    };
+
+    static string AssessmentsModel_StatusText(Models.AssessmentStatus? status, Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer loc) => status switch
+    {
+        Models.AssessmentStatus.Pass => loc["Status_Pass"].Value,
+        Models.AssessmentStatus.Warning => loc["Status_Warn"].Value,
+        Models.AssessmentStatus.Fail => loc["Status_Fail"].Value,
+        Models.AssessmentStatus.NotApplicable => loc["Status_Na"].Value,
+        _ => "\u2014"
+    };
+
+    static string AssessmentsModel_StatusClass(Models.AssessmentStatus? status) => status switch
+    {
+        Models.AssessmentStatus.Pass => "asmt-st-pass",
+        Models.AssessmentStatus.Warning => "asmt-st-warn",
+        Models.AssessmentStatus.Fail => "asmt-st-fail",
+        _ => "asmt-st-na"
+    };
+}

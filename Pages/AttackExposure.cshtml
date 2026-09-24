@@ -1,0 +1,279 @@
+@page
+@using ActiveRolesDashboard.Models
+@model ActiveRolesDashboard.Pages.AttackExposureModel
+@inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer Localizer
+@{
+    ViewData["Title"] = "ATT&CK Exposure";
+    Layout = null;
+    var pathBase = HttpContext.Request.PathBase.Value ?? "";
+
+    string LevelClass(ExposureLevel level) => level switch
+    {
+        ExposureLevel.High => "exp-high",
+        ExposureLevel.Medium => "exp-medium",
+        ExposureLevel.Low => "exp-low",
+        _ => "exp-none"
+    };
+
+    string LevelLabel(ExposureLevel level) => level switch
+    {
+        ExposureLevel.High => Localizer["Level_High"].Value,
+        ExposureLevel.Medium => Localizer["Level_Medium"].Value,
+        ExposureLevel.Low => Localizer["Level_Low"].Value,
+        _ => Localizer["Level_None"].Value
+    };
+
+    string LevelName(ExposureLevel? level) => level == null ? "—" : LevelLabel(level.Value);
+
+    string DirClass(ExposureDeltaDirection dir) => dir switch
+    {
+        ExposureDeltaDirection.Increased => "delta-bad",
+        ExposureDeltaDirection.Decreased => "delta-good",
+        ExposureDeltaDirection.Added => "delta-added",
+        ExposureDeltaDirection.Removed => "delta-removed",
+        _ => "delta-none"
+    };
+
+    string DirArrow(ExposureDeltaDirection dir) => dir switch
+    {
+        ExposureDeltaDirection.Increased => "▲",
+        ExposureDeltaDirection.Decreased => "▼",
+        ExposureDeltaDirection.Added => "＋",
+        ExposureDeltaDirection.Removed => "－",
+        _ => "="
+    };
+}
+<!DOCTYPE html>
+<html lang="@System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName">
+<head>
+    <meta charset="utf-8" />
+    <base href="@Url.Content("~/")" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Active Roles Dashboard - ATT&CK Exposure</title>
+    <link rel="stylesheet" href="css/dashboard.css" asp-append-version="true" />
+</head>
+<body>
+<div class="page">
+    <div class="sticky-head">
+    @{
+        ViewData["HeaderKey"] = "AttackExposure";
+        ViewData["RefreshUrl"] = "/AttackExposure"; ViewData["ShowHome"] = true;
+    }
+    <partial name="_DashboardHeader" />
+
+    <a href="@(pathBase)/?cached=true" class="back-link">&larr; @Localizer["BackToDashboard"]</a>
+    </div>
+
+    @if (Model.EntraMembershipDataPending)
+    {
+        <div class="membership-warning" role="status">@Model.EntraMembershipPendingWarning</div>
+    }
+
+    <div class="atk-summary">
+        <div class="atk-stat exp-high">
+            <div class="atk-stat-val">@Model.Exposure.HighCount</div>
+            <div class="atk-stat-lbl">@Localizer["HighExposure"]</div>
+        </div>
+        <div class="atk-stat exp-medium">
+            <div class="atk-stat-val">@Model.Exposure.MediumCount</div>
+            <div class="atk-stat-lbl">@Localizer["MediumExposure"]</div>
+        </div>
+        <div class="atk-stat exp-low">
+            <div class="atk-stat-val">@Model.Exposure.LowCount</div>
+            <div class="atk-stat-lbl">@Localizer["LowExposure"]</div>
+        </div>
+        <div class="atk-stat exp-none">
+            <div class="atk-stat-val">@Model.Exposure.CoveredTechniques / @Model.Exposure.TotalTechniques</div>
+            <div class="atk-stat-lbl">@Localizer["TechniquesWithExposure"]</div>
+        </div>
+    </div>
+
+    <p class="atk-note">
+        @Localizer["IntroNote"]
+        @Localizer["GeneratedAt", Model.Exposure.GeneratedAt.ToString("yyyy-MM-dd HH:mm:ss")]
+    </p>
+
+    <section class="exp-history">
+        <h2 class="exp-h2">@Localizer["CompareAndTrend"]</h2>
+        <p class="atk-note">
+            @Localizer["CompareNote", $"{pathBase}/Snapshots"]
+        </p>
+
+        @if (!Model.Snapshots.Any())
+        {
+            <div class="membership-warning" role="status">
+                @Localizer["NoSnapshotsWarning"]
+            </div>
+        }
+        else
+        {
+            <form method="get" class="exp-compare-form" id="expCompareForm">
+                <label>
+                    @Localizer["Baseline"]
+                    <select name="FromId" id="expFromId"@(Model.CanCompareExposureReports ? "" : " disabled")>
+                        <option value="">@Localizer["SelectPlaceholder"]</option>
+                        @foreach (var s in Model.Snapshots)
+                        {
+                            var lbl = string.IsNullOrWhiteSpace(s.Label)
+                                ? s.CreatedUtc.ToString("yyyy-MM-dd HH:mm")
+                                : $"{s.Label} ({s.CreatedUtc:yyyy-MM-dd HH:mm})";
+                            <option value="@s.Id" selected="@(s.Id == Model.FromId)">@lbl</option>
+                        }
+                    </select>
+                </label>
+                <label>
+                    @Localizer["CompareTo"]
+                    <select name="ToId" id="expToId"@(Model.CanCompareExposureReports ? "" : " disabled")>
+                        <option value="current" selected="@(Model.ToId == "current" || string.IsNullOrEmpty(Model.ToId))">@Localizer["CurrentLive"]</option>
+                        @foreach (var s in Model.Snapshots)
+                        {
+                            var lbl = string.IsNullOrWhiteSpace(s.Label)
+                                ? s.CreatedUtc.ToString("yyyy-MM-dd HH:mm")
+                                : $"{s.Label} ({s.CreatedUtc:yyyy-MM-dd HH:mm})";
+                            <option value="@s.Id" selected="@(s.Id == Model.ToId)">@lbl</option>
+                        }
+                    </select>
+                </label>
+                <button type="submit" id="expCompareBtn"@(Model.CanCompareExposureReports ? "" : " disabled") class="snap-btn snap-btn-primary">@Localizer["Compare"]</button>
+            </form>
+
+            @if (Model.Comparison != null)
+            {
+                var cmp = Model.Comparison;
+                <div class="exp-cmp-summary">
+                    <span class="delta-bad">▲ @Localizer["Pill_Increased", cmp.IncreasedCount]</span>
+                    <span class="delta-good">▼ @Localizer["Pill_Decreased", cmp.DecreasedCount]</span>
+                    <span class="delta-none">= @Localizer["Pill_Unchanged", cmp.UnchangedCount]</span>
+                    <span class="delta-added">＋ @Localizer["Pill_Added", cmp.AddedCount]</span>
+                    <span class="delta-removed">－ @Localizer["Pill_Removed", cmp.RemovedCount]</span>
+                </div>
+                <p class="atk-note">
+                    @Html.Raw(Localizer["ComparingNote", cmp.FromLabel, cmp.ToLabel])
+                </p>
+
+                <div class="exp-cmp-tactics">
+                    @foreach (var t in cmp.Tactics)
+                    {
+                        <div class="exp-cmp-tactic">
+                            <div class="exp-cmp-tactic-head">
+                                @MitreTacticInfo.DisplayName(t.Tactic)
+                                <span class="atk-tactic-id">@MitreTacticInfo.Id(t.Tactic)</span>
+                            </div>
+                            <table class="exp-cmp-table">
+                                <colgroup>
+                                    <col class="exp-col-tech" />
+                                    <col class="exp-col-level" />
+                                    <col class="exp-col-arrow" />
+                                    <col class="exp-col-level" />
+                                </colgroup>
+                                <thead>
+                                    <tr><th>@Localizer["Col_Technique"]</th><th>@Localizer["Col_Baseline"]</th><th></th><th>@Localizer["Col_Compared"]</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in t.Rows)
+                                    {
+                                        <tr class="@DirClass(row.Direction)">
+                                            <td>
+                                                <span class="exp-cmp-tid">@row.TechniqueId</span>
+                                                @row.TechniqueName
+                                            </td>
+                                            <td>@LevelName(row.FromLevel)</td>
+                                            <td class="exp-cmp-arrow">@DirArrow(row.Direction)</td>
+                                            <td>@LevelName(row.ToLevel)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (Model.Trend.Labels.Count > 1)
+            {
+                var maxCount = Math.Max(1, Model.Trend.HighCounts
+                    .Concat(Model.Trend.MediumCounts)
+                    .Concat(Model.Trend.LowCounts)
+                    .DefaultIfEmpty(0)
+                    .Max());
+                <h3 class="exp-h3">@Localizer["ExposureTrend"]</h3>
+                <p class="atk-note">@Localizer["TrendNote", Model.Trend.Labels.Count]</p>
+                <div class="exp-trend">
+                    @for (var i = 0; i < Model.Trend.Labels.Count; i++)
+                    {
+                        var hi = Model.Trend.HighCounts.ElementAtOrDefault(i);
+                        var me = Model.Trend.MediumCounts.ElementAtOrDefault(i);
+                        var lo = Model.Trend.LowCounts.ElementAtOrDefault(i);
+                        <div class="exp-trend-col" title="@Model.Trend.Labels[i] — @Localizer["TrendTooltip", hi, me, lo]">
+                            <div class="exp-trend-bars">
+                                <span class="exp-bar exp-high" style="height:@(hi * 100 / maxCount)%"></span>
+                                <span class="exp-bar exp-medium" style="height:@(me * 100 / maxCount)%"></span>
+                                <span class="exp-bar exp-low" style="height:@(lo * 100 / maxCount)%"></span>
+                            </div>
+                            <div class="exp-trend-lbl">@Model.Trend.Labels[i]</div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </section>
+
+    <div class="atk-matrix">
+        @foreach (var tactic in Model.Exposure.Tactics)
+        {
+            <div class="atk-tactic">
+                <div class="atk-tactic-head @LevelClass(tactic.MaxLevel)">
+                    <span class="atk-tactic-name">@MitreTacticInfo.DisplayName(tactic.Tactic)</span>
+                    <span class="atk-tactic-id">@MitreTacticInfo.Id(tactic.Tactic)</span>
+                </div>
+                <div class="atk-tactic-body">
+                    @foreach (var tech in tactic.Techniques)
+                    {
+                        <div class="atk-tech @LevelClass(tech.Level)">
+                            <div class="atk-tech-head">
+                                <span class="atk-tech-name">@tech.Technique.Name</span>
+                                <span class="atk-tech-badge @LevelClass(tech.Level)">@LevelLabel(tech.Level)</span>
+                            </div>
+                            <div class="atk-tech-id">@tech.Technique.Id</div>
+                            <p class="atk-tech-desc">@tech.Technique.Description</p>
+                            <div class="atk-contribs">
+                                @foreach (var c in tech.Contributions)
+                                {
+                                    <div class="atk-contrib @LevelClass(c.Level)">
+                                        <span class="atk-contrib-name">@c.DisplayName</span>
+                                        <span class="atk-contrib-count">@(c.HasError ? Localizer["NotAvailable"].Value : c.Count.ToString())</span>
+                                    </div>
+                                }
+                            </div>
+                            <p class="atk-tech-mit"><strong>@Localizer["Mitigation"]:</strong> @tech.Technique.Mitigation</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <footer class="footer">@Localizer["Footer", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")]</footer>
+    @await Html.PartialAsync("_EntraMembershipConfig")
+</div>
+@await Html.PartialAsync("_ToastAndMembership")
+<script src="js/dashboard.js" asp-append-version="true"></script>
+    <script>
+        // Keep the Compare button disabled until a Baseline snapshot is chosen (the baseline
+        // has a "select" placeholder with an empty value). The server also rejects an empty
+        // FromId, and users without CompareExposureReports are gated separately.
+        (function () {
+            var canCompare = @(Model.CanCompareExposureReports ? "true" : "false");
+            var fromSel = document.getElementById('expFromId');
+            var compareBtn = document.getElementById('expCompareBtn');
+            if (fromSel && compareBtn) {
+                var syncCompare = function () {
+                    compareBtn.disabled = !canCompare || !fromSel.value;
+                };
+                fromSel.addEventListener('change', syncCompare);
+                syncCompare();
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+	<value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+	<value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+	<value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+	<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="LoadingDashboardData" xml:space="preserve">
+    <value>Caricamento dei dati della dashboard...</value>
+  </data>
+  <data name="Card_WebInterface" xml:space="preserve">
+	<value>Interfaccia Web di Active Roles</value>
+  </data>
+  <data name="Card_AutoRefresh" xml:space="preserve">
+	<value>Aggiornamento automatico</value>
+  </data>
+  <data name="Card_Language" xml:space="preserve">
+	<value>Lingua</value>
+  </data>
+  <data name="Card_KpiConfiguration" xml:space="preserve">
+	<value>Configurazione dei KPI</value>
+  </data>
+  <data name="Card_KpiVisibility" xml:space="preserve">
+	<value>Visibilità dei KPI</value>
+  </data>
+  <data name="Label_BaseUrl" xml:space="preserve">
+	<value>URL di base</value>
+  </data>
+  <data name="Hint_WebInterface" xml:space="preserve">
+	<value>URL di base dell'interfaccia Web di Active Roles. Questa impostazione si applica a tutti gli utenti.</value>
+  </data>
+  <data name="Label_RefreshInterval" xml:space="preserve">
+	<value>Intervallo di aggiornamento (minuti)</value>
+  </data>
+  <data name="Hint_AutoRefresh" xml:space="preserve">
+	<value>Imposta 0 per disabilitare l'aggiornamento automatico.</value>
+  </data>
+  <data name="Label_DisplayLanguage" xml:space="preserve">
+	<value>Lingua di visualizzazione</value>
+  </data>
+  <data name="Hint_Language" xml:space="preserve">
+	<value>Lingua utilizzata per l'interfaccia del dashboard. Ulteriori lingue verranno aggiunte nel tempo.</value>
+  </data>
+  <data name="Label_ArAdminsBaseDn" xml:space="preserve">
+	<value>Amministratori di Active Roles - DN di base</value>
+  </data>
+  <data name="Label_ArAdminsFilter" xml:space="preserve">
+	<value>Amministratori di Active Roles - Filtro LDAP</value>
+  </data>
+  <data name="Label_NoGroupOwnerBaseDn" xml:space="preserve">
+	<value>Nessun proprietario del gruppo - DN di base</value>
+  </data>
+  <data name="Label_NoManagerUserBaseDn" xml:space="preserve">
+	<value>Nessun manager (utente) - DN di base</value>
+  </data>
+  <data name="Label_NoManagerUserFilter" xml:space="preserve">
+	<value>Nessun manager (utente) - Filtro LDAP</value>
+  </data>
+  <data name="Label_NoManagerSvcBaseDn" xml:space="preserve">
+	<value>Nessun manager (account di servizio) - DN di base</value>
+  </data>
+  <data name="Label_NoManagerSvcFilter" xml:space="preserve">
+	<value>Nessun manager (account di servizio) - Filtro LDAP</value>
+  </data>
+  <data name="Label_LockedOutBaseDn" xml:space="preserve">
+	<value>Account utente bloccato - DN di base</value>
+  </data>
+  <data name="Label_EmptyGroupsBaseDn" xml:space="preserve">
+	<value>Gruppi vuoti - DN di base</value>
+  </data>
+  <data name="Label_LargeGroupThreshold" xml:space="preserve">
+	<value>Gruppi grandi - Soglia membri</value>
+  </data>
+  <data name="Hint_LargeGroupThreshold" xml:space="preserve">
+	<value>I gruppi Entra con almeno questo numero di membri diretti vengono segnalati dal KPI Gruppi grandi. Predefinito 100.</value>
+  </data>
+  <data name="BackToDashboard" xml:space="preserve">
+	<value>Torna al dashboard</value>
+  </data>
+  <data name="Card_RestApi" xml:space="preserve">
+    <value>Configurazione API REST</value>
+  </data>
+  <data name="Label_Resource" xml:space="preserve">
+    <value>Risorsa</value>
+  </data>
+  <data name="Label_IgnoreSslErrors" xml:space="preserve">
+    <value>Ignora errori del certificato SSL</value>
+  </data>
+  <data name="Card_DefaultFilters" xml:space="preserve">
+    <value>Filtri predefiniti</value>
+  </data>
+  <data name="Card_RoleManagement" xml:space="preserve">
+    <value>Gestione dei ruoli</value>
+  </data>
+  <data name="RoleManagementHint" xml:space="preserve">
+    <value>Assegna le autorizzazioni a ciascun ruolo. I ruoli e le autorizzazioni sono fissi. Il ruolo Amministratore della dashboard dispone sempre di tutte le autorizzazioni e non può essere modificato.</value>
+  </data>
+  <data name="Col_Permission" xml:space="preserve">
+    <value>Autorizzazione</value>
+  </data>
+  <data name="RoleFixedTooltip" xml:space="preserve">
+    <value>Il ruolo Amministratore della dashboard dispone sempre di tutte le autorizzazioni e non può essere modificato.</value>
+  </data>
+  <data name="Label_DefaultNoGroupOwnerFilter" xml:space="preserve">
+    <value>Filtro gruppi senza proprietario</value>
+  </data>
+  <data name="Label_DefaultNoManagerUserFilter" xml:space="preserve">
+    <value>Filtro utenti senza manager</value>
+  </data>
+  <data name="Label_DefaultNoManagerServiceAccountFilter" xml:space="preserve">
+    <value>Filtro account di servizio senza manager</value>
+  </data>
+  <data name="Label_DefaultUserAccountExpiredFilter" xml:space="preserve">
+    <value>Filtro account utente scaduti</value>
+  </data>
+  <data name="Label_DefaultUserAccountLockedOutFilter" xml:space="preserve">
+    <value>Filtro account utente bloccati</value>
+  </data>
+  <data name="Label_DefaultEmptyGroupsFilter" xml:space="preserve">
+    <value>Filtro gruppi vuoti</value>
+  </data>
+  <data name="Label_DefaultActiveRolesAdminsFilter" xml:space="preserve">
+    <value>Filtro amministratori Active Roles</value>
+  </data>
+  <data name="Label_DefaultADUserAccountsFilter" xml:space="preserve">
+    <value>Filtro account utente AD</value>
+  </data>
+  <data name="Label_DefaultADGroupsFilter" xml:space="preserve">
+    <value>Filtro gruppi AD</value>
+  </data>
+  <data name="Card_DefaultLanguage" xml:space="preserve">
+    <value>Lingua</value>
+  </data>
+  <data name="Label_DefaultLanguage" xml:space="preserve">
+    <value>Lingua predefinita</value>
+  </data>
+  <data name="Hint_DefaultLanguage" xml:space="preserve">
+    <value>La lingua predefinita utilizzata per i nuovi utenti e quando un utente non ha selezionato una lingua.</value>
+  </data>
+  <data name="Label_CustomADUserAccountAttributes" xml:space="preserve">
+    <value>Attributi personalizzati degli account utente AD</value>
+  </data>
+  <data name="Hint_CustomADUserAccountAttributes" xml:space="preserve">
+    <value>Attributi aggiuntivi da recuperare per gli account utente AD, uno per riga.</value>
+  </data>
+  <data name="Card_ServiceAccount" xml:space="preserve">
+    <value>Credenziali dell'account di servizio</value>
+  </data>
+  <data name="Card_Licensing" xml:space="preserve">
+    <value>Soglie di licenza</value>
+  </data>
+  <data name="Card_DataRefresh" xml:space="preserve">
+    <value>Aggiornamento dei dati</value>
+  </data>
+  <data name="Label_DailyRefreshTime" xml:space="preserve">
+    <value>Ora di aggiornamento giornaliero</value>
+  </data>
+  <data name="Hint_DailyRefreshTime" xml:space="preserve">
+    <value>Ora locale (formato 24 ore) in cui i dati condivisi vengono aggiornati.</value>
+  </data>
+  <data name="Label_LoadOnStartup" xml:space="preserve">
+    <value>Carica all'avvio</value>
+  </data>
+  <data name="Hint_LoadOnStartup" xml:space="preserve">
+    <value>Aggiorna automaticamente i dati condivisi all'avvio dell'applicazione.</value>
+  </data>
+  <data name="Label_ApiBaseUrl" xml:space="preserve">
+    <value>URL di base dell'API REST</value>
+  </data>
+  <data name="Label_RstsUrl" xml:space="preserve">
+    <value>URL del token RSTS</value>
+  </data>
+  <data name="Label_ServiceAccountUsername" xml:space="preserve">
+    <value>Nome utente dell'account di servizio</value>
+  </data>
+  <data name="Label_ServiceAccountPassword" xml:space="preserve">
+    <value>Password dell'account di servizio</value>
+  </data>
+  <data name="Label_ExpiredBaseDn" xml:space="preserve">
+    <value>Account utente scaduto - DN di base</value>
+  </data>
+  <data name="Label_LicensedDomainObjects" xml:space="preserve">
+    <value>Oggetti di dominio con licenza</value>
+  </data>
+  <data name="Label_LicensedPartitionObjects" xml:space="preserve">
+    <value>Oggetti di partizione con licenza</value>
+  </data>
+  <data name="Label_LicensedAzureObjects" xml:space="preserve">
+    <value>Oggetti Azure con licenza</value>
+  </data>
+  <data name="Label_LicensedSaasObjects" xml:space="preserve">
+    <value>Oggetti SaaS con licenza</value>
+  </data>
+  <data name="Label_LicensedTotalObjects" xml:space="preserve">
+    <value>Totale oggetti con licenza</value>
+  </data>
+  <data name="Hint_RestartRequired" xml:space="preserve">
+    <value>Questa impostazione ha effetto solo dopo il riavvio dell'applicazione.</value>
+  </data>
+  <data name="Hint_ServiceAccountPassword" xml:space="preserve">
+    <value>Lasciare vuoto per mantenere la password esistente. Le modifiche hanno effetto solo dopo un riavvio.</value>
+  </data>
+  <data name="Placeholder_PasswordUnchanged" xml:space="preserve">
+    <value>Invariato</value>
+  </data>
+  <data name="Hint_LicensedTotalObjects" xml:space="preserve">
+    <value>Diritto totale con licenza in tutte le categorie. Il valore 0 indica non configurato.</value>
+  </data>
+  <data name="Msg_RestartRequired" xml:space="preserve">
+    <value>Una o più impostazioni di connessione sono state modificate. Riavviare l'applicazione affinché queste modifiche abbiano effetto.</value>
+  </data>
+  <data name="SaveSettings" xml:space="preserve">
+	<value>Salva impostazioni</value>
+  </data>
+</root>

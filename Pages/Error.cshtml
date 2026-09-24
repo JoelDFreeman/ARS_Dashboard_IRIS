@@ -1,0 +1,24 @@
+﻿@page
+@model ErrorModel
+@inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer Localizer
+@{
+    ViewData["Title"] = Localizer["Title"].Value;
+}
+
+<h1 class="text-danger">@Localizer["Heading"]</h1>
+<h2 class="text-danger">@Localizer["Subheading"]</h2>
+
+@if (Model.ShowRequestId)
+{
+    <p>
+        <strong>@Localizer["RequestId"]</strong> <code>@Model.RequestId</code>
+    </p>
+}
+
+<h3>@Localizer["DevMode"]</h3>
+<p>
+    @Html.Raw(Localizer["DevModeLine1"])
+</p>
+<p>
+    @Html.Raw(Localizer["DevModeLine2"])
+</p>

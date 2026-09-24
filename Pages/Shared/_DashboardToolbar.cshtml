@@ -1,0 +1,102 @@
+@* Dashboard toolbar partial — top-right page actions only.
+   Nav links (Home, Assessment, ATT&CK Exposure, Snapshots, Refresh, Rebuild Cache,
+   Settings) moved to the left sidebar (_Sidebar.cshtml). This partial now only
+   renders the membership indicator, the per-dashboard Export button, and the
+   profile menu.
+   Parameters (via ViewData):
+     - "DashboardKey": the current dashboard key (e.g., "ActiveDirectory"). When set, shows the Export button.
+*@
+@inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer Localizer
+@{
+    var appBase = Context.Request.PathBase.Value ?? "";
+    var dashboardKey = ViewData["DashboardKey"] as string ?? "";
+    // Show the Export button only when the current user's role grants ExportDashboardData. Read
+    // from the live dashboard page model when available (so it stays in sync with the summary),
+    // falling back to the ViewData flag published by InitializePageAsync. Defaults to true when
+    // neither is present so pages that don't compute it are unaffected; the /Export handler
+    // enforces access server-side regardless.
+    var dashboardModel = Model as ActiveRolesDashboard.Pages.DashboardPageModel;
+    var showExport = dashboardModel?.CanExportDashboardData ?? ViewData["ShowExport"] as bool? ?? true;
+    var profileName = User.Identity?.Name ?? "User";
+    var profileInitials = string.Concat(profileName.Split(new[] { '.', '\\', ' ', '_' }, StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => part[0])).ToUpperInvariant();
+}
+<div class="hdr-right">
+    @* Group-membership loading indicator: people icon with a remaining-count badge. Hidden
+       while idle; driven by window.membershipBadge (see _ToastAndMembership partial). *@
+    <span id="membership-indicator" class="btn-icon membership-indicator" hidden style="display:none" title="@Localizer["LoadingMembership"]" aria-label="@Localizer["LoadingMembership"]" aria-live="polite">
+        <svg class="membership-indicator-icon" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        <span class="membership-indicator-badge" id="membership-indicator-badge">0</span>
+    </span>
+    @if (!string.IsNullOrEmpty(dashboardKey) && showExport)
+    {
+        <button type="button" class="btn-icon btn-icon-ghost" title="@Localizer["Export"]" aria-label="@Localizer["Export"]" id="btnExport">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+    }
+    <div class="profile-menu-wrap">
+        <button type="button" class="profile-trigger" id="profileTrigger" aria-label="Profile menu" aria-haspopup="menu" aria-expanded="false">
+            <span class="profile-avatar" aria-hidden="true">@(string.IsNullOrEmpty(profileInitials) ? "U" : profileInitials)</span>
+        </button>
+        <div class="profile-menu" id="profileMenu" role="menu" hidden>
+            <div class="profile-menu-header">
+                <span class="profile-menu-name">@profileName</span>
+                <span class="profile-menu-role">Active Roles user</span>
+            </div>
+            <div class="profile-menu-section" role="group" aria-label="Appearance">
+                <span class="profile-menu-label">Appearance</span>
+                <button type="button" class="profile-menu-item" data-theme="light" role="menuitem">Light</button>
+                <button type="button" class="profile-menu-item" data-theme="dark" role="menuitem">Dark</button>
+                <button type="button" class="profile-menu-item" data-theme="hc-light" role="menuitem">High contrast</button>
+            </div>
+            <div class="profile-menu-divider"></div>
+            <a href="@(appBase)/Logout" class="profile-menu-item profile-menu-logout" role="menuitem" aria-label="@Localizer["SignOut"]">@Localizer["SignOut"]</a>
+        </div>
+    </div>
+</div>
+<script>
+    (function () {
+        var trigger = document.getElementById('profileTrigger');
+        var menu = document.getElementById('profileMenu');
+        if (!trigger || !menu) return;
+
+        function setOpen(open) {
+            trigger.setAttribute('aria-expanded', String(open));
+            menu.hidden = !open;
+        }
+
+        trigger.addEventListener('click', function () {
+            setOpen(menu.hidden);
+        });
+
+        document.addEventListener('click', function (event) {
+            if (!menu.contains(event.target) && !trigger.contains(event.target)) setOpen(false);
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                setOpen(false);
+                trigger.focus();
+            }
+        });
+
+        var savedTheme = localStorage.getItem('ars.theme') || 'light';
+        function applyTheme(theme) {
+            document.body.classList.remove('theme-light', 'theme-dark', 'theme-hc-light');
+            document.body.classList.add('theme-' + theme);
+            localStorage.setItem('ars.theme', theme);
+            document.querySelectorAll('[data-theme]').forEach(function (button) {
+                button.setAttribute('aria-checked', String(button.getAttribute('data-theme') === theme));
+            });
+        }
+        applyTheme(savedTheme);
+        menu.querySelectorAll('[data-theme]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                applyTheme(button.getAttribute('data-theme'));
+            });
+        });
+    })();
+</script>
+@if (!string.IsNullOrEmpty(dashboardKey) && showExport)
+{
+    <partial name="_ExportDialog" view-data="ViewData" />
+}

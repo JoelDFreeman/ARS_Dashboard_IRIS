@@ -1,0 +1,11 @@
+project-name = Active Roles Dashboard
+project-description = Update existing UI to Iris
+workflow-skills = architecture, deep-linking, figma-read-from-mcp, git, motion, testing, vercel-publish, migrate-non-iris-to-iris
+git-remote = skipped
+figma-stale = no
+shell-product = active-roles
+shell-mode = shell
+shell-page = Active Roles Dashboard
+shell-default-page = #/active-roles-dashboard
+vercel-setup = no
+migrate-prompted = yes

@@ -1,0 +1,223 @@
+﻿using System.Text.Json;
+using ActiveRolesDashboard.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace ActiveRolesDashboard.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class DrillDownController : ControllerBase
+{
+    private readonly ActiveRolesService _arService;
+
+    public DrillDownController(ActiveRolesService arService)
+    {
+        _arService = arService;
+    }
+
+    private string? GetToken()
+    {
+        return HttpContext.Session.GetString("AccessToken");
+    }
+
+    [HttpGet("details/{objectGuid}")]
+    public async Task<IActionResult> GetDetails(string objectGuid)
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token))
+            return Unauthorized();
+
+        var result = await _arService.GetObjectDetailsAsync(token, objectGuid);
+        if (result == null)
+            return Ok(new { error = "No data" });
+
+        return Ok(JsonSerializer.Deserialize<object>(result.RootElement.GetRawText()));
+    }
+
+    [HttpGet("children/{objectGuid}")]
+    public async Task<IActionResult> GetChildren(string objectGuid)
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token))
+            return Unauthorized();
+
+        var result = await _arService.GetChildrenAsync(token, objectGuid);
+        if (result == null)
+            return Ok(new { error = "No data" });
+
+        return Ok(JsonSerializer.Deserialize<object>(result.RootElement.GetRawText()));
+    }
+
+    [HttpGet("domains")]
+    public async Task<IActionResult> GetDomains()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetDomainsAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("servers")]
+    public async Task<IActionResult> GetServers()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetServersAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("dynamicgroups")]
+    public async Task<IActionResult> GetDynamicGroups()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetDynamicGroupsAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("managedunits")]
+    public async Task<IActionResult> GetManagedUnits()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetManagedUnitsAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("workflows")]
+    public async Task<IActionResult> GetWorkflows()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetWorkflowsAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("scheduledtasks")]
+    public async Task<IActionResult> GetScheduledTasks()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetScheduledTasksAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("virtualattrs")]
+    public async Task<IActionResult> GetVirtualAttributes()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetVirtualAttributesAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("policies")]
+    public async Task<IActionResult> GetPolicies()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetPolicyObjectsAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("accesstemplates")]
+    public async Task<IActionResult> GetAccessTemplates()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetAccessTemplatesAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("emptyaccesstemplates")]
+    public async Task<IActionResult> GetEmptyAccessTemplates()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetEmptyAccessTemplatesAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("policyobjectsnorules")]
+    public async Task<IActionResult> GetPolicyObjectsNoRules()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetPolicyObjectsNoRulesAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("unlinkedaccesstemplates")]
+    public async Task<IActionResult> GetUnlinkedAccessTemplates()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetUnlinkedAccessTemplatesAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("denyaccesstemplates")]
+    public async Task<IActionResult> GetDenyAccessTemplates()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetDenyAccessTemplatesAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("unlinkedpolicyobjects")]
+    public async Task<IActionResult> GetUnlinkedPolicyObjects()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetUnlinkedPolicyObjectsAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("orphanaccesstemplatelinks")]
+    public async Task<IActionResult> GetOrphanAccessTemplateLinks()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetOrphanAccessTemplateLinksAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("orphanpolicyobjectlinks")]
+    public async Task<IActionResult> GetOrphanPolicyObjectLinks()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetOrphanPolicyObjectLinksAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("dynamicgroupsbrokenrules")]
+    public async Task<IActionResult> GetDynamicGroupsBrokenRules()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetDynamicGroupsBrokenRulesAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("managedunitsbrokenrules")]
+    public async Task<IActionResult> GetManagedUnitsBrokenRules()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetManagedUnitsBrokenRulesAsync(token);
+        return Ok(result);
+    }
+
+    [HttpGet("scriptmodules")]
+    public async Task<IActionResult> GetScriptModules()
+    {
+        var token = GetToken();
+        if (string.IsNullOrEmpty(token)) return Unauthorized();
+        var result = await _arService.GetScriptModulesAsync(token);
+        return Ok(result);
+    }
+}

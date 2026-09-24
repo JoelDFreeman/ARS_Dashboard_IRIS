@@ -1,0 +1,46 @@
+:root {
+  --oi-background-color-primary: #ffffff;
+  --oi-background-color-secondary: #f1f5f9;
+  --oi-background-color-tertiary: #e2e8f0;
+  --oi-background-color-brand: #dff2fe;
+  --oi-base-color-brand: #00a6f4;
+  --oi-base-color-success: #00c950;
+  --oi-base-color-warning: #f0b100;
+  --oi-base-color-error: #fb2c36;
+  --oi-border-color-default: #cad5e2;
+  --oi-border-color-muted: #e2e8f0;
+  --oi-border-color-strong: #90a1b9;
+  --oi-border-color-focus: var(--oi-base-color-brand);
+  --oi-content-color-primary: #0f172b;
+  --oi-content-color-secondary: #314158;
+  --oi-content-color-tertiary: #62748e;
+  --oi-content-color-brand: #0084d1;
+  --oi-content-color-constant: #ffffff;
+  --oi-button-background-primary: #00a6f4;
+  --oi-button-background-primary-hover: #0084d1;
+  --oi-button-background-secondary: #ffffff;
+  --oi-spacing-xs: 4px;
+  --oi-spacing-s: 8px;
+  --oi-spacing-m: 12px;
+  --oi-spacing-l: 16px;
+  --oi-spacing-xl: 24px;
+  --oi-spacing-xxl: 32px;
+  --oi-border-radius-s: 2px;
+  --oi-border-radius-default: 4px;
+  --oi-border-radius-l: 8px;
+  --oi-border-radius-xl: 12px;
+  --oi-border-radius-xxl: 16px;
+  --oi-shadow-low: 0 2px 4px rgba(2, 6, 24, 0.08);
+  --oi-motion-duration-short: 120ms;
+  --oi-motion-duration-default: 200ms;
+  --oi-motion-ease-default: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

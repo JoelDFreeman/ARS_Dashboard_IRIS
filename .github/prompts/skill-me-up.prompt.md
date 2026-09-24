@@ -1,0 +1,368 @@
+---
+mode: agent
+description: Rebuild master-skills.md by fetching the latest skill files from the up-skill repo on GitHub, and copy any skill-bundled files into this project.
+version: 24
+---
+
+## Cross-platform execution guardrails
+
+This prompt must run reliably on macOS/Linux shells and Windows PowerShell.
+
+- Prefer VS Code tools for fetch/read/write/copy operations instead of shell one-liners whenever possible.
+- If terminal commands are required, use syntax that matches the active shell. Never assume bash on Windows.
+- In PowerShell, avoid bash-specific patterns (`&&` chains, heredocs, bash-only quoting). Use PowerShell-native commands and quoting.
+- For Windows paths or user-provided values, prefer PowerShell `-LiteralPath` and `Join-Path` patterns to avoid escaping bugs.
+- If a shell-specific command fails due to quoting/parsing, retry immediately with shell-native syntax while keeping the same step coverage. Do not skip steps silently.
+
+## Step -1 — Self-update check
+
+Before doing anything else, fetch the latest version of this prompt from the up-skill repo:
+
+```
+https://raw.githubusercontent.com/slowpulsestudio/iris-proto-build-react/main/.github/prompts/skill-me-up.prompt.md
+```
+
+Compare the fetched `version:` frontmatter field to the `version:` field in the current `.github/prompts/skill-me-up.prompt.md` in this project. If the version field is missing from either file, fall back to comparing full file contents instead.
+
+- **If the versions (or full contents, when falling back) are identical:** continue to Step 0.
+- **If they differ:** ask, with clickable Yes/No buttons: *"There are updates available for the skill-me-up prompt. Would you like me to update it now? You'll need to run `/skill-me-up` again after."*
+  - If yes: overwrite `.github/prompts/skill-me-up.prompt.md` with the fetched version and stop. Do not continue setup.
+  - If no: continue to Step 0 with the current version.
+
+## Step -0 — Upfront prereq preflight
+
+Before Step 0, run a read-only preflight check for local prerequisites. Do not install anything automatically in this step.
+
+Check and report each item clearly as pass/fail:
+
+1. Git is installed (`git --version`)
+2. Node.js is installed (`node --version`)
+3. pnpm is installed (`pnpm --version`)
+4. The active shell is identified correctly (PowerShell on Windows, zsh/bash on macOS/Linux)
+
+If any check fails, stop and give one exact next command for the user to run, then wait for confirmation before continuing.
+
+If all checks pass, continue to Step 0.
+
+## Step 0 — Skills setup
+
+`platform/poc-iris-react` is now mandatory for all projects. Legacy `platform/iris-react-with-shell` and standalone `platform/iris-react` are retired.
+
+Check whether a `.skills` file exists in the root of this project.
+
+**If `.skills` exists:** read it to get the skill list, then normalize it before doing anything else:
+
+- If `platform/iris-react` is present, replace it with `platform/poc-iris-react`.
+- If `platform/iris-react-with-shell` is present, replace it with `platform/poc-iris-react`.
+- If `platform/poc-iris-react` is missing, add it.
+- If multiple platform entries are present, keep only `platform/poc-iris-react`.
+
+Write the normalized `.skills` file back immediately, then proceed to Answer tracking below — new questions added to the prompt since the project was first set up will be asked now if their key is missing from `.skill-answers`. After resolving any missing answers, skip to Step 0b.
+
+**If `.skills` does not exist:** proceed to the questions below. Do not improvise or skip ahead — follow the steps exactly as written.
+
+### Answer tracking
+
+Before asking any setup questions, check whether `.skill-answers` exists in the project root. If it does, read it — it stores previously given answers as `key = value` pairs, one per line (skip blank lines and lines starting with `#`).
+
+For every question below, check whether its key already exists in `.skill-answers`:
+
+- **Key exists:** skip the question silently. Use the stored value.
+- **Key is missing:** ask the question. When answered, add `key = value` to `.skill-answers` (creating the file if it doesn't exist yet).
+
+After all questions are resolved, write any newly collected answers to `.skill-answers`.
+
+### Question UX
+
+Any question in this prompt (here or in later steps) that has a fixed set of possible answers — yes/no, single-select from a list, or multi-select from a list — must be asked using an interactive tool that renders real clickable buttons or checkboxes, never a plain chat message listing options as text to type back. Many users answering these are new to AI agent chat and won't know free-text typing is even an option, so a visible clickable choice must always be present. Freeform text can stay enabled alongside the buttons when a typed answer also makes sense (e.g. a URL or a custom name), but never present a bare text box with no clickable alternative when a reasonable default/skip choice exists. Only genuinely open-ended questions with no natural fixed alternative (e.g. project name, project description) are plain text with no buttons required.
+
+### Questions
+
+**`project-name`** — *"What is the name of this prototype?"*
+
+**`project-description`** — *"In a sentence or two, describe what you're trying to test — or add any relevant context (version, goal, background) that will help the AI understand this prototype."*
+
+The platform is fixed and must always be `platform/poc-iris-react`. Do not ask a platform-selection question.
+
+**`workflow-skills`** — *"`workflow/general` is always included. Select from the table below. Skill names are shown without the `workflow/` prefix for readability."* Present this as a clickable multi-select (checkboxes), pre-toggled to match the `Default` column below — don't make the user retype skill names.
+
+| Default | Skill | When to include |
+|---|---|---|
+| on | `architecture` | General code structure rules |
+| on | `deep-linking` | URL-addressable navigation is needed |
+| on | `figma-read-from-mcp` | Building screens from Figma designs |
+| off | `figma-write-to-canvas` | Writing generated results back to Figma canvas |
+| off | `figma-update-existing-screen` | Redesign an existing screen in the POC |
+| on | `git` | Git workflow support is needed |
+| on | `motion` | Motion principles, token usage, and reduced-motion checks are needed |
+| on | `testing` | Testing standards and verification guidance are needed |
+| off | `microsoft` | The user/team uses Microsoft Windows OS or PowerShell |
+| on | `vercel-publish` | Project will deploy to Vercel |
+| off | `migrate-non-iris-to-iris` | Migrating a non-Iris app to Iris |
+| off | `vercel-password` | Vercel preview password-gating is required |
+
+When saving to `.skills`, always expand selected entries to full names with the `workflow/` prefix (for example `motion` -> `workflow/motion`).
+
+**`git-remote`** — only if `workflow/git` was selected: ask *"What is the GitHub repo URL for this project?"* with a clickable *"I'll add this later"* button alongside the free-text input.
+- If the user pastes/types a URL now — use it in Step 0b below.
+- If the user clicks *"I'll add this later"* — skip Step 0b's remote setup for now and continue; save `git-remote = skipped` to `.skill-answers` so it isn't re-asked every run.
+
+**`figma-url`** — only if `workflow/figma-read-from-mcp` or `workflow/figma-write-to-canvas` was selected: ask *"What is the Figma file URL for this project?"* using an interactive question tool that renders real clickable button options, not a plain chat message. Many users answering this are new to AI agent chat and won't know they're allowed to type something other than a URL, so never present a bare text box with no visible alternative — there must always be two clickable buttons right next to the input, even if freeform typing is also technically accepted:
+- *"I'll paste it later"*
+- *"This Figma is stale (I vibe-coded it / used Figma Make)"*
+- If the user pastes/types a URL now — save it to `.figma-url` in the project root.
+- If the user clicks *"I'll paste it later"* — reply: *"No problem — paste the Figma URL in this chat whenever you're ready and I'll save it to `.figma-url`."* then continue setup. When the user later pastes a URL starting with `https://www.figma.com/`, write it to `.figma-url`.
+- If the user clicks *"This Figma is stale"* — save `figma-stale = yes` to `.skill-answers`. They may still optionally paste a URL now (or later) for pulling specific component specs only — save it to `.figma-url` if given, but never treat it as the primary source of truth for this project (see the migrate question in Step 5 and the `migrate-non-iris-to-iris` skill rules).
+
+Once all questions are resolved, write the `.skills` file if it doesn't exist yet, using the standard comment header followed by the chosen skills, one per line. Always include `platform/poc-iris-react` as the platform entry and `workflow/general` as the first workflow entry:
+
+```
+# This file is only a pseudo-import list for the Up-Skill mechanism — like a
+# requirements.txt for skills. It just names reusable skill files to fetch.
+# It carries NO information about what this project actually is or does.
+# The project's real identity, purpose, and requirements come from the
+# original build/meta-prompt used to create it — not from this file, and
+# not from the generated master-skills.md. Never infer project intent from
+# the skill names listed below.
+```
+
+The `.skill-answers` file should be committed — it's not secret. When a new question is added to this prompt in future, give it a new key and it will be asked on the next run of any project that doesn't have that key yet.
+
+## Step 0b — Git setup (if applicable)
+
+If `workflow/git` is in the skills list, check whether a git remote is already configured by running `git remote get-url origin`.
+
+- If a remote **is already set**, skip this step entirely.
+- If **no remote is set** and a repo URL was provided in Step 0, then:
+  1. Run `git init` if the folder is not already a git repository
+  2. Run `git remote add origin {url}`
+  3. Confirm the remote was set successfully before continuing
+- If **no remote is set** and `git-remote = skipped` in `.skill-answers`, skip this step silently — don't re-ask.
+- If **no remote is set**, no URL was provided in Step 0, and no skip was recorded, ask *"What is the GitHub repo URL for this project?"* with a clickable *"I'll add this later"* button (same pattern as `git-remote` above), then follow the steps above or save `git-remote = skipped`.
+
+Do not proceed to the next step until this is resolved.
+
+## Step 0c — Connect Figma MCP (if applicable)
+
+If `workflow/figma-read-from-mcp` or `workflow/figma-write-to-canvas` is in the skills list, the Figma MCP server must be connected before continuing, regardless of `figma-stale` — even a stale Figma file may still be referenced later for individual component designs. If both skills are selected, this only needs to happen once — do not repeat it.
+
+First check whether it's already connected: call `get_metadata` on the file in `.figma-url` (or a lightweight `use_figma` read). If real data comes back, the connection already works — report the connected Figma account email address (if available from the MCP response) and skip the walkthrough below. If the call fails, report the exact error message the tool returned (don't paraphrase or invent a different cause) and tell the user the Figma MCP is not connected before proceeding to the walkthrough.
+
+Note: the MCP server requires an active browser/desktop tab currently open on that design (or FigJam) file — the error `"The MCP server is only available if your active tab is a design or FigJam file"` means no such tab is active right now, not that the account/integration is disconnected. Point the user at that distinction rather than assuming the whole integration is broken.
+
+If it does not work, walk the user through connecting via Figma's own UI (do not act as a workaround yourself: never write or edit `mcp.json` by hand, never use VS Code's "Add MCP Server" command, and never consider a non-cloud/local server address). Give the user only these plain steps, with no meta-commentary about what you're avoiding:
+
+1. Open the Figma desktop app (or figma.com), open the target file, and switch to **Dev Mode**.
+2. Open the **MCP** panel and go to **Clients**.
+3. Next to **Visual Studio Code**, click **+** / **Get Figma integration**.
+4. Figma auto-installs the integration and completes the connection to VS Code automatically.
+
+After the walkthrough, call `get_metadata` again to confirm the connection now works before continuing to Step 1.
+
+## Step 1 — Rebuild master-skills.md and refresh example-prompts.md
+
+For each skill name, fetch the corresponding skill file from GitHub using this URL pattern:
+
+```
+https://raw.githubusercontent.com/slowpulsestudio/iris-proto-build-react/main/skills/{skill-name}.md
+```
+
+In the exact same parallel fetch batch as the skill files above — not a separate step, not a later tool call — also fetch this URL, regardless of which skills are selected (it's general reference material for Designers, not skill-specific):
+
+```
+https://raw.githubusercontent.com/slowpulsestudio/iris-proto-build-react/main/example-prompts.md
+```
+
+This file is easy to silently drop because it isn't a "skill" — treat its fetch as mandatory on every single run, with no exceptions, and confirm in your own head that the fetch count is "number of skills + 1" before moving on.
+
+Fetch everything in parallel every run, even when `.skills` has not changed, because upstream content may have changed. If any skill fails to fetch (404 or network error), stop before writing `master-skills.md` and report the failure clearly to the user, listing which skill(s) failed — do not silently omit a failed skill from the concatenated content. Then concatenate the skill files in the order they appear in `.skills`, with a blank line between each. Compare both the current `.skills` selection and the assembled skill content with the existing `master-skills.md` in the project root:
+
+- If the `.skills` selection and assembled content are both unchanged, leave `master-skills.md` untouched and report that it is already up to date.
+- If the `.skills` selection changed or any fetched skill content differs, write the assembled content to `master-skills.md`.
+- If `master-skills.md` does not exist, create it.
+
+Separately, compare the fetched example-prompts.md content to the existing `example-prompts.md` in the project root (if any):
+
+- If it doesn't exist yet, or differs from the fetched content, write the fetched content to `example-prompts.md` in the project root.
+- If it already matches, leave it untouched.
+- This comparison and write must happen every run — do not skip it because `master-skills.md` was unchanged, and do not fold its result silently into the skills report without calling it out on its own line in Step 4.
+
+## Step 2 — Copy skill-bundled files
+
+After fetching each skill file, scan it for a `## Resources` section. If a skill has no `## Resources` section, skip this step for that skill.
+
+The `## Resources` section contains directory copy mappings, one per line, in the format:
+
+```
+source-folder/ -> dest-folder/
+```
+
+- `source-folder/` is a path relative to `skill-resources/{skill-name}/` in the up-skill repo. `{skill-name}` is the full name including its category folder (e.g. `platform/poc-iris-react`, not just `poc-iris-react`) — use it as-is when building this base directory, never just its last path segment.
+- `dest-folder/` is the destination path relative to this project's root
+
+For each mapping, use the zip download approach:
+1. Download the up-skill repo as a zip:
+   `https://github.com/slowpulsestudio/iris-proto-build-react/archive/refs/heads/main.zip`
+2. Extract only the files whose path within the zip starts with `iris-proto-build-react-main/skill-resources/{skill-name}/{source-folder}/` — for example, for the `platform/poc-iris-react` skill with a `poc-iris-react-main/` source folder, the full prefix is `iris-proto-build-react-main/skill-resources/platform/poc-iris-react/poc-iris-react-main/`.
+3. Write each extracted file to `{project-root}/{dest-folder}/{relative-path}`, where `relative-path` is the portion after the prefix in step 2. Create any necessary directories.
+4. If a file already exists at the destination and its content differs, warn the user and skip it — do not overwrite.
+5. If a mapping matches zero files in the zip, this is an error, not an empty result — stop and report the exact prefix searched so the user can check the archive contents. Do not report it as "nothing to copy".
+
+Download the zip once and reuse it for all resource mappings across all skills.
+
+After all files are copied, if `project-name` is known from `.skill-answers`, find `index.html` in the project (check `src/iris-shell/index.html`, `src/iris-ui/index.html`, then the project root) and update the `<title>` tag to the project name. Skip silently if no `index.html` exists.
+
+## Step 2b — Shell page selection (if applicable)
+
+If `platform/poc-iris-react` is active, this must be resolved before continuing to Step 3, since it determines where the design gets built and what loads by default. This step happens after Step 2 so `src/lib/verticals.ts` actually exists in the project to read.
+
+Check `.skill-answers` for `shell-product` and `shell-mode`.
+
+- **If both exist:** skip silently.
+- **If missing:** read `src/lib/verticals.ts` and ask *"What product is your prototype for?"* as a single flat clickable list of product names — every known vertical by its `label` field (currently Active Roles, On Demand Services, Identity Manager, Safeguard, OneLogin), plus a final **"New product"** option. Do not group or label options by shell/standalone — that distinction is confusing to a Designer picking a product for the first time, and is resolved by the confirmation follow-up below instead, not by the initial picker.
+  - Picking an existing vertical whose `mainNav` is non-empty infers `shell-mode = shell`. Picking one whose `mainNav` is empty (e.g. OneLogin) infers `shell-mode = standalone`. Either way, set `shell-product = {that vertical's id}`.
+  - Picking **"New product"** asks for the new product's name, infers `shell-mode = standalone` (new/unknown products default to no shell until confirmed otherwise), and sets `shell-product = {the typed name}`. Do not create a `verticals.ts` entry for it — standalone products don't need one (see below).
+  - **Confirm the inferred default** with a clickable Yes/No follow-up before saving, pre-selecting/marking the inferred answer as the recommended option:
+    - If `shell-mode = shell`: *"So because you chose {product label}, I assume you want to include the Iris top bar and left navigation in your prototype?"* (Yes is the recommended/pre-selected button)
+    - If `shell-mode = standalone`: *"So because you selected {product label}, I assume you do NOT want the standard Iris top bar and left navigation included in your prototype?"* (Yes is the recommended/pre-selected button)
+    - If the answer confirms the default: keep `shell-mode` as inferred.
+    - If the answer contradicts the default: flip `shell-mode` to the other value (`shell` <-> `standalone`), keeping the same `shell-product`.
+  - Save `shell-mode` and `shell-product` to `.skill-answers`.
+- **If `.skill-answers` has a `shell-page` value but no `shell-mode`/`shell-product` keys** (project set up before this question existed): treat as `shell-mode = shell` and skip silently — don't re-ask.
+
+**If `shell-mode = standalone`:** skip the rest of this step entirely — no page selection, no `verticals.ts` edits. Build screens as bare pages using Iris UI components and tokens directly (no `AppShell`, `GlobalSidebar`, `AppHeader`, or vertical nav model). Do not save a `shell-page` value.
+
+**If `shell-mode = shell`:** check `.skill-answers` for `shell-page`.
+
+- **If it exists:** skip the page-selection question silently, then check `.skill-answers` for `shell-default-page`:
+  - **If it exists:** skip silently.
+  - **If missing:** no first-screen location is being chosen in this run, so ask the open form: *"What default page (navigation link) do you want this prototype to load on default?"* as a single flat clickable list of every `mainNav` entry for `shell-product`. Update that vertical's `defaultRoute` to the chosen entry's route, and save `shell-default-page = {route}`.
+- **If missing:**
+  1. Read the `mainNav` entries for the vertical matching `shell-product`. Ask: *"Where should we build your design? In an existing left-navigation page, or a new one?"* List every existing `mainNav` entry for that product (including disabled/placeholder pages) as options, plus an **"Add new page"** option.
+  2. If an existing page is picked, use its `value` as `shell-page`.
+  3. If "Add new page" is picked, ask for the new page's name and use it as `shell-page`. Add it as a new `mainNav` entry in that vertical in `verticals.ts` — no need to explain the mechanics of `verticals.ts`, product chooser, or routing to the Designer, just do it.
+  4. A location for the first screen was just chosen above, so ask the default-page question as a confirmation instead of the open form: *"You are building {shell-page label} first — would you like the prototype to open this screen on load as the default?"* (Yes is the recommended/pre-selected button).
+     - If yes: the default route is `shell-page`'s route.
+     - If no: ask *"What default page (navigation link) do you want this prototype to load on default?"* as a single flat clickable list of every `mainNav` entry for this product, and the default route is the chosen entry's route instead.
+  5. Update that vertical's `defaultRoute` to the resolved default route from step 4.
+- Save the answer as `shell-page = {value}` in `.skill-answers`, and the resolved default route as `shell-default-page = {route}`.
+
+## Step 3 — Create AI instruction files
+
+Check for the following files and create them if they don't already exist:
+
+**`.github/copilot-instructions.md`**
+```
+Read master-skills.md and prototype-specific-agent-instructions.md for your operating instructions.
+```
+
+**`CLAUDE.md`**
+```
+Read master-skills.md and prototype-specific-agent-instructions.md for your operating instructions.
+```
+
+**`prototype-specific-agent-instructions.md`**
+```
+# Prototype-specific agent instructions
+
+Add any instructions here that are specific to this prototype — design decisions, constraints, what you're testing, known issues, personas, etc. This file is never overwritten by /skill-me-up.
+```
+
+**`README.md`** — using `project-name` and `project-description` from `.skill-answers`, the URL in `.figma-url` (if it exists), and the skill list from `.skills`:
+```
+# {project-name}
+
+{project-description}
+
+Generated by [Up-Skill](https://github.com/slowpulsestudio/iris-proto-build-react) — an AI prototyping skills library. This project's AI instructions are assembled from the skills below into `master-skills.md`. To pull in the latest skill updates, run `/skill-me-up` again.
+
+**Figma file:** {figma-url}
+```
+
+Omit the `Figma file` line entirely if `.figma-url` doesn't exist. Follow it with a `## Skills used` heading and a bullet list of every skill name in `.skills`, one per line.
+
+Check whether `README.md` already exists in the project root before generating it. This check happens on every run, not just the first — if a project was set up before this step existed, or the file was otherwise never created, generate it now on this rerun.
+
+If any of these files already exist, leave them untouched — do not overwrite or append.
+
+## Step 4 — Report
+
+When done, report:
+- Which skills were fetched successfully
+- The total line count of `master-skills.md`, and whether it was created, updated, or already up to date
+- Whether `example-prompts.md` was created, updated, or already up to date
+- Any skills that failed to fetch (404 or network error)
+- Which bundled files were copied (grouped by skill), and any that were skipped due to conflicts
+- Whether `.github/copilot-instructions.md`, `CLAUDE.md`, `prototype-specific-agent-instructions.md`, and `README.md` were created or already existed
+
+## Step 5 — Post-setup actions (ask in order, only if applicable)
+
+Ask the following questions one at a time, only for the skills that are active. Skip any that aren't.
+
+**If `workflow/git` is active:**
+Check whether any files were actually changed or created during this run (e.g. `master-skills.md` was overwritten, new bundled files were copied, or instruction files were created).
+- **If files were changed/created:** ask exactly, with clickable Yes/No buttons: *"Would you like me to commit and push these changes to GitHub?"* — do NOT say "initial setup"; this may be a rerun.
+  - If yes: stage all changed/new files, write a commit message that summarises what changed (e.g. `Update master-skills.md and copy bundled resources`), and push to origin.
+- **If nothing changed:** skip — do not ask.
+- If no: skip.
+
+**If `workflow/vercel-publish` is active** (ask after the git question is resolved):
+Check `.skill-answers` for `vercel-setup`, and whether `.vercel/project.json` exists.
+
+- **If `vercel-setup = done` in `.skill-answers`, OR `.vercel/project.json` exists:** Vercel is already connected — skip this question entirely.
+- **If `vercel-setup = no` in `.skill-answers`:** user previously declined — skip this question entirely.
+- **Otherwise:** ask, with clickable Yes/No buttons: *"Would you like me to walk you through setting up auto-publish from your GitHub repo to Vercel?"*
+  - If yes: guide the user through connecting the repo to Vercel via the Vercel dashboard (Import Project → select repo). Once they confirm it's connected:
+    1. Tell them to turn off **Vercel Authentication** (also called "Require Login") under Project Settings → Deployment Protection (`/~/settings/deployment-protection`) — otherwise preview/snapshot URLs will require a Vercel login to view, blocking Designers and stakeholders who don't have one.
+    2. Point them to the project's **Deployments** tab in the Vercel dashboard — this is where they'll find build status, logs, and the URL for every push going forward.
+    3. Save `vercel-setup = done` to `.skill-answers`.
+  - If no: save `vercel-setup = no` to `.skill-answers` and skip.
+
+**If `platform/poc-iris-react` is active AND (`workflow/figma-read-from-mcp` or `workflow/figma-write-to-canvas` is active) AND `.figma-url` exists** (ask after the Vercel question is resolved):
+Check `.skill-answers` for `figma-build-prompted`.
+
+Check `.skill-answers` for `figma-build-mode`.
+- **If missing:** ask, with clickable buttons for each option: *"When we build this screen, should we create a new screen from scratch, or update an existing screen from the `poc-iris-react` base?"*
+- Save one of:
+  - `figma-build-mode = create-new`
+  - `figma-build-mode = update-existing`
+
+- **If it exists:** skip silently.
+- **If missing:** ask, with clickable Yes/No buttons: *"You've got a Figma file connected — want me to start building out the design from it now{, into the `{shell-page}` page if shell-mode = shell}?"* (omit the page reference entirely when `shell-mode = standalone`).
+- Save `figma-build-prompted = yes` or `figma-build-prompted = no` to `.skill-answers` regardless of the answer (so it's only asked once per project, not every rerun).
+- If yes and `figma-build-mode = create-new`: proceed to implement using the `figma-read-from-mcp` skill rules, targeting `src/views/` and (when `shell-mode = shell`) the page named in `shell-page`. When `shell-mode = standalone`, build the screen as a bare page with no `AppShell`/shell chrome. After implementation, you must:
+  1. Run a local build (`pnpm build`)
+  2. Start or reuse the local dev server (`pnpm dev`)
+  3. Open localhost to the new route and show the generated screen to the user before moving on
+  4. Ask if they are happy with what was created
+- If yes and `figma-build-mode = update-existing`: proceed using both `figma-read-from-mcp` and `figma-update-existing-screen` rules. Build-time flow must be:
+  1. Produce the discrepancy audit table first (current code vs target design, plus check/cross columns for design-system availability and existing local implementation)
+  2. Ask for approval of the audit
+  3. Implement one discrepancy at a time
+  4. Build locally and ask "are you happy with this change?" before moving to the next discrepancy
+  5. Continue until all discrepancy rows are resolved or explicitly deferred
+- If no: stop there — no further action.
+
+**If `workflow/migrate-non-iris-to-iris` is active** (ask after the Figma build question is resolved):
+Check `.skill-answers` for `migrate-prompted`.
+
+- **If it exists:** skip silently.
+- **If missing:** ask, with clickable Yes/No buttons: *"Do you want to migrate the current project to the Iris prototype platform now?"*
+  - Save `migrate-prompted = yes` or `migrate-prompted = no` to `.skill-answers` regardless of the answer (so it's only asked once per project, not every rerun).
+  - If yes: follow the `migrate-non-iris-to-iris` rules in `master-skills.md` — audit the existing codebase first, present the audit for review, then migrate one component at a time only after confirmation. If `figma-stale = yes` in `.skill-answers`, the audit must be based on the current codebase already in this project (and its live deployment, if any) — do not ask for a separate prototype URL, and do not treat the stale Figma file as a source of truth for layout/content, only for specific component specs if needed.
+  - If no: skip — the user can ask to migrate a component at any later time and the same rules apply.
+
+## Step 6 — Final local run handoff (always)
+
+After all previous steps finish, regardless of route taken, run this final handoff:
+
+1. Run a local build (`pnpm build`) and report whether it passed.
+2. Start or reuse a local dev server (`pnpm dev`).
+3. Provide the running localhost URL as a clickable link in the final response.
+
+The final user-facing message must explicitly state:
+- that a build was run
+- whether it passed or failed
+- the local server URL to open
+
+If the server cannot be started, explain the exact blocker and the next single command the user should run.

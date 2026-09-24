@@ -1,0 +1,72 @@
+@model ActiveRolesDashboard.Pages.DashboardPageModel
+@inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer Localizer
+@{
+    // Config for the client-side lazy membership loader (dashboard.js) and the global header
+    // progress badge. Emitted on every dashboard page that pre-warms Entra totals (main
+    // dashboard and Entra ID dashboard) so the badge/toast appear regardless of which panels
+    // are rendered. The loader skips fetching when membership is already loaded.
+    var entra = Model.Summary.EntraTotals;
+    var membershipLoaded = entra.MembershipLoaded;
+
+    // Defensive guard against a redundant second (client-side) membership load. A page can be
+    // served from a per-user session cache that was built BEFORE the shared collector finished
+    // loading Entra membership (MembershipLoaded = false). Once the collector has finished
+    // (snapshot complete and no longer loading), the authoritative data already exists server-side,
+    // so the client loader must not batch-load it all over again. Treat membership as loaded when
+    // the shared snapshot is complete, which turns the client loader into a no-op.
+    if (!membershipLoaded
+        && !Model.ServerMembershipLoading
+        && Model.SupersetMembershipLoaded)
+    {
+        membershipLoaded = true;
+    }
+
+    // Total number of Entra group objects whose membership must be lazily loaded. Mirrors the
+    // server's group-type classification (Security, Microsoft 365, Distribution, Dynamic Distribution).
+    var totalGroupsToLoad =
+        entra.EntraObjectsOf(EntraObjectType.DistributionGroup).Items.Count +
+        entra.EntraObjectsOf(EntraObjectType.DynamicDistributionGroup).Items.Count +
+        entra.EntraObjectsOf(EntraObjectType.Microsoft365Group).Items.Count +
+        entra.EntraObjectsOf(EntraObjectType.SecurityGroup).Items.Count;
+
+    // How many groups already have membership loaded (persisted in session). Lets the client
+    // resume batched loading after page navigation instead of restarting from zero.
+    var membershipAlreadyLoaded = Math.Min(totalGroupsToLoad, Math.Max(0, entra.MembershipLoadedCount));
+
+    // When the shared superset collector is actively loading membership (a user logged in
+    // mid-collection), the badge should reflect the SERVER's progress and the client batch loader
+    // must stay idle - the server is doing the work. In that case the group total/loaded counts
+    // come from the collector's live progress, not this per-user summary snapshot.
+    var serverLoading = Model.ServerMembershipLoading;
+    if (serverLoading)
+    {
+        totalGroupsToLoad = Model.ServerMembershipTotal;
+        membershipAlreadyLoaded = Model.ServerMembershipLoaded;
+    }
+}
+@if (Model.Summary.EntraVisible)
+{
+<div id="entra-membership-config"
+     data-endpoint="@Url.Page(null, "EntraMembership")"
+     data-batch-endpoint="@Url.Page(null, "EntraMembershipBatch")"
+     data-progress-endpoint="@Url.Page(null, "EntraMembershipProgress")"
+     data-server-loading="@(serverLoading ? "true" : "false")"
+     data-web-url="@Model.WebInterfaceUrl"
+     data-loaded="@(membershipLoaded ? "true" : "false")"
+     data-total-groups="@totalGroupsToLoad"
+     data-loaded-count="@membershipAlreadyLoaded"
+     data-batch-size="@Model.MembershipBatchSize"
+     data-toast-delay="@Model.MembershipToastDelayMs"
+     data-i18n-empty-emptygroups="@Localizer["Empty_EmptyGroups"]"
+     data-i18n-empty-nogroupowner="@Localizer["Empty_NoGroupOwner"]"
+     data-i18n-empty-guestcontaining="@Localizer["Empty_GuestContaining"]"
+     data-i18n-empty-singleowner="@Localizer["Empty_SingleOwner"]"
+     data-i18n-empty-largegroups="@Localizer["Empty_LargeGroups"]"
+     data-i18n-failed-membership="@Localizer["FailedToLoadMembership"]"
+     data-i18n-toast-loaded="@Localizer["Toast_MembershipLoaded"]"
+     data-i18n-toast-failed="@Localizer["Toast_MembershipFailed"]"
+     data-i18n-toast-loading="@Localizer["Toast_MembershipLoading"]"
+     data-i18n-tip-openweb="@Localizer["Tip_OpenWebInterface"]"
+     data-i18n-tip-configureweb="@Localizer["Tip_ConfigureWebUrl"]"
+     hidden></div>
+}
