@@ -822,10 +822,13 @@ function animateDashboardVisuals(root = document) {
         '.ad-summary-value, .ad-risk-value, .chart-ring-total, .ad-source-legend strong, .iris-kpi-row .val'
     ));
     const counts = countElements.map(element => {
+        // Cache the real value: the element's text is 0 mid-animation, so a re-run must not re-read it.
+        if (element.dataset.countTarget !== undefined) return { element, value: Number(element.dataset.countTarget) };
         const text = element.textContent.trim();
         if (!/^\d[\d.,\s\u00a0\u202f]*$/.test(text)) return null;
         const value = Number(text.replace(/[.,\s\u00a0\u202f]/g, ''));
         if (!Number.isFinite(value)) return null;
+        element.dataset.countTarget = String(Math.round(value));
         return { element, value: Math.round(value) };
     }).filter(Boolean);
 
