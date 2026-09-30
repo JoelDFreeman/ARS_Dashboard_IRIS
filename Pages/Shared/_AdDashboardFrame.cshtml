@@ -380,7 +380,6 @@
                 if (typeof initCategoryCharts === 'function') initCategoryCharts();
                 if (typeof initTableSort === 'function') initTableSort();
                 if (typeof animateDashboardVisuals === 'function') animateDashboardVisuals(content);
-                if (typeof animateDashboardVisuals === 'function') animateDashboardVisuals(content);
 
                 if (updateHistory) {
                     var url = new URL(window.location.pathname, window.location.origin);
@@ -409,7 +408,6 @@
     var requestedTabLink = document.querySelector('.ad-tabs [data-dashboard-key="@currentTabKey"]');
     var serverRenderedTabKey = window.location.pathname.toLowerCase().endsWith('/activedirectory') ? 'ActiveDirectory' : 'Overview';
     if (requestedTabLink && requestedTabLink.dataset.dashboardKey !== serverRenderedTabKey) activateDashboardTab(requestedTabLink, false);
-    else if (typeof animateDashboardVisuals === 'function') animateDashboardVisuals(document.querySelector('.ad-content-scroll'));
     else if (typeof animateDashboardVisuals === 'function') animateDashboardVisuals(document.querySelector('.ad-content-scroll'));
     (function () {
         var params = new URLSearchParams(window.location.search);
