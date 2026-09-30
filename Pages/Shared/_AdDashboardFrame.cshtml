@@ -1,0 +1,468 @@
+@using ActiveRolesDashboard.Models
+@model ActiveRolesDashboard.Pages.DashboardPageModel
+@inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer Localizer
+@{
+    ViewData["UseFigmaNavigation"] = true;
+    ViewData["ShowSidebarDashboardActions"] = false;
+    ViewData["SidebarTitle"] = "Active Roles";
+    ViewData["SidebarDashboardLabel"] = "Dashboard";
+    ViewData["ShowAdminRebuild"] = Model.CanRebuildCache;
+    ViewData["CacheRebuildInProgress"] = Model.CacheRebuildInProgress;
+
+    var riskGroups = new[]
+    {
+        new[] { "EmptyGroups", "NoGroupOwner", "NoManagerServiceAccount", "NoManagerUser", "SpnUserAccounts", "UserAccountLockedOut" },
+        new[] { "CircularGroupNesting", "ExpiredUsers", "NeverLoggedIn", "ReversibleEncryption", "StaleUsers", "UnconstrainedComputers" }
+    };
+    var riskKeys = riskGroups.SelectMany(group => group).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    var riskKpis = KpiInfo.ForCategory(CategoryInfo.ADGovernance)
+        .Where(kpi => riskKeys.Contains(kpi.Key) && Model.KpiSettings.IsKpiEnabled(kpi.CategoryKey, kpi.Key))
+        .ToDictionary(kpi => kpi.Key, StringComparer.OrdinalIgnoreCase);
+    var actionRequiredCount = riskKpis.Values.Count(kpi =>
+    {
+        var result = Model.Summary.GetKpiResult(kpi.Key);
+        return result.Error != null || result.Count > 0;
+    });
+    var requestedTab = ViewContext.HttpContext.Request.Query["dashboard"].ToString();
+    var currentTabKey = !string.IsNullOrEmpty(requestedTab)
+        ? requestedTab
+        : ViewContext.HttpContext.Request.Path.StartsWithSegments("/ActiveDirectory", StringComparison.OrdinalIgnoreCase)
+            ? "ActiveDirectory"
+            : "Overview";
+    var isOverviewTab = currentTabKey == "Overview";
+    var summaryCategory = isOverviewTab ? CategoryInfo.Overview : CategoryInfo.ADOverview;
+    var sourceSplitKey = isOverviewTab ? "ADUserAccounts" : "AdOverviewUsers";
+    var sourceSplit = Model.Summary.GetSourceSplit(sourceSplitKey).Where(source => source.Count > 0).ToList();
+    var managedObjectsResult = Model.Summary.GetKpiResult("ManagedObjects");
+    var showArsManagedObjects = isOverviewTab
+        && Model.CanViewLicensingDashboard
+        && Model.KpiSettings.IsKpiEnabled("Licensing", "ManagedObjects");
+
+    string RiskDescription(string key) => key switch
+    {
+        "EmptyGroups" => "Groups with no members assigned.",
+        "NoGroupOwner" => "Groups missing an assigned owner.",
+        "NoManagerServiceAccount" => "Service accounts without a manager.",
+        "NoManagerUser" => "User accounts without a manager.",
+        "SpnUserAccounts" => "Service accounts that have a service principal name.",
+        "UserAccountLockedOut" => "User accounts currently locked out.",
+        "CircularGroupNesting" => "Circular group nesting detected.",
+        "ExpiredUsers" => "User accounts past their expiration date.",
+        "NeverLoggedIn" => "Users with no sign-in activity.",
+        "ReversibleEncryption" => "Accounts configured for reversible encryption.",
+        "StaleUsers" => "Accounts inactive beyond the configured threshold.",
+        "UnconstrainedComputers" => "Computers configured for unconstrained delegation.",
+        _ => string.Empty
+    };
+
+    string SourceColor(string source) => source switch
+    {
+        "Active Directory" => "var(--chart-ring-blue-400)",
+        "Entra ID" => "var(--chart-ring-green-300)",
+        _ => "var(--chart-ring-blue-400)"
+    };
+}
+<div class="page ad-design-page">
+    <partial name="_Sidebar" />
+    <div class="ad-main">
+        @{
+            ViewData["DashboardKey"] = string.Empty;
+        }
+        <header class="ad-app-bar">
+            <button class="ad-sidebar-toggle" id="sidebarToggle" type="button" aria-label="Collapse navigation" aria-expanded="true">
+                <svg class="sidebar-toggle-icon" viewBox="0 0 18 14" width="18" height="14" aria-hidden="true"><path d="M16 13V14H2V13H16ZM17 12V2C17 1.44771 16.5523 1 16 1H2C1.44772 1 1 1.44772 1 2V12C1 12.5523 1.44771 13 2 13V14C0.89543 14 0 13.1046 0 12V2C0 0.89543 0.89543 0 2 0H16C17.1046 0 18 0.89543 18 2V12C18 13.1046 17.1046 14 16 14V13C16.5523 13 17 12.5523 17 12Z" fill="currentColor"/><rect class="sidebar-toggle-pane" x="2" y="2" width="8" height="10" rx="1" fill="currentColor"/></svg>
+            </button>
+            <nav class="ad-breadcrumb" aria-label="Breadcrumb">
+                <span>Active Roles</span><span aria-hidden="true">/</span><span aria-current="page">Dashboard</span>
+            </nav>
+            @await Html.PartialAsync("_DashboardToolbar")
+        </header>
+
+        <main class="ad-content">
+            <div class="ad-content-sticky">
+                <div class="ad-title-row">
+                    <div class="ad-title-group">
+                        <h1 id="ad-dashboard-title">@(currentTabKey == "Overview" ? "Overview" : "Active Directory Dashboard")</h1>
+                        <span class="ad-info-tip iris-icon-info" title="Active Directory environment overview" aria-label="Active Directory environment overview"></span>
+                    </div>
+                    <div class="ad-page-actions">
+                        <button type="button" class="ad-action" id="btnRefresh" title="@Localizer["Refresh"]">
+                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.6 9a7 7 0 0 1 11.8-2L20 9M4 15l2.6 2a7 7 0 0 0 11.8-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <span>@Localizer["Refresh"]</span>
+                        </button>
+                        @if (Model.CanRebuildCache)
+                        {
+                            <form method="post" asp-page-handler="Refresh" class="ad-inline-form" id="rebuildCacheForm">
+                                <button type="submit" class="ad-action" id="btnRebuildCache" @(Model.CacheRebuildInProgress ? "disabled" : "") aria-disabled="@(Model.CacheRebuildInProgress ? "true" : "false")">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><ellipse cx="12" cy="5" rx="8.5" ry="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 5v14c0 1.7 3.8 3 8.5 3s8.5-1.3 8.5-3V5M3.5 12c0 1.7 3.8 3 8.5 3s8.5-1.3 8.5-3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+                                    <span>@Localizer["RebuildCache"]</span>
+                                </button>
+                            </form>
+                        }
+                        @if (Model.CanExportDashboardData)
+                        {
+                            <button type="button" class="ad-action" id="btnExport" title="@Localizer["Export"]">
+                                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 16v4h14v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <span>@Localizer["Export"]</span>
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <nav class="ad-tabs" aria-label="Dashboards">
+                <a class="@(currentTabKey == "Overview" ? "active" : "")" href="@(ViewContext.HttpContext.Request.PathBase)/?cached=true" data-dashboard-key="Overview" data-dashboard-url="@(ViewContext.HttpContext.Request.PathBase)/?cached=true" aria-current="@(currentTabKey == "Overview" ? "page" : null)">Overview</a>
+                @foreach (var dashboard in DashboardInfo.All)
+                {
+                    var visible = dashboard.Key switch
+                    {
+                        "ActiveRoles" => Model.CanViewActiveRolesDashboard,
+                        "ActiveDirectory" => Model.CanViewActiveDirectoryDashboard,
+                        "EntraId" => Model.CanViewEntraIdDashboard,
+                        "Exchange" => Model.CanViewExchangeDashboard,
+                        "Licensing" => Model.CanViewLicensingDashboard,
+                        _ => false
+                    };
+                    if (!visible) { continue; }
+                    var isCurrent = currentTabKey == dashboard.Key;
+                    <a class="@(isCurrent ? "active" : "")" href="@(ViewContext.HttpContext.Request.PathBase)@dashboard.Url" data-dashboard-key="@dashboard.Key" data-dashboard-url="@(ViewContext.HttpContext.Request.PathBase)@dashboard.Url" aria-current="@(isCurrent ? "page" : null)">@dashboard.Title</a>
+                }
+                <span class="ad-tabs-indicator" aria-hidden="true"></span>
+                </nav>
+            </div>
+
+            <div class="ad-content-scroll">
+              <div class="ad-sections">
+                @if (Model.KpiSettings.IsCategoryEnabled(summaryCategory.Key))
+                {
+                    <section class="ad-overview" aria-label="@CategoryInfo.ADOverview.DisplayName">
+                        <div class="ad-summary-metrics">
+                            @foreach (var kpi in KpiInfo.ForCategory(summaryCategory)
+                                .Where(kpi => kpi.Key is "ADUserAccounts" or "AdOverviewUsers"
+                                    or "ADGroups" or "AdOverviewGroups"
+                                    or "Computers" or "AdOverviewComputers"))
+                            {
+                                if (!Model.KpiSettings.IsKpiEnabled(kpi.CategoryKey, kpi.Key)) { continue; }
+                                var result = Model.Summary.GetKpiResult(kpi.Key);
+                                var (icon, capacityWidth) = kpi.Key switch
+                                {
+                                    "ADUserAccounts" or "AdOverviewUsers" => ("users", "28.4%"),
+                                    "ADGroups" or "AdOverviewGroups" => ("groups", "84.1%"),
+                                    _ => ("computers", "68.2%")
+                                };
+                                <div class="ad-summary-metric">
+                                    <div class="ad-summary-label">
+                                        <span class="ad-summary-icon ad-summary-icon-@icon" aria-hidden="true"></span>
+                                        <span>@kpi.Label</span>
+                                    </div>
+                                    <div class="ad-summary-value">@(result.Error ?? result.Count.ToString("N0", System.Globalization.CultureInfo.CurrentCulture))</div>
+                                    <div class="ad-capacity-track" aria-hidden="true"><span style="width: @capacityWidth"></span></div>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
+
+                @if (Model.KpiSettings.IsCategoryEnabled(summaryCategory.Key))
+                {
+                    <section class="ad-source-card" aria-labelledby="ad-source-title">
+                        <div class="ad-section-heading">
+                            <h2 id="ad-source-title">Source Distribution</h2>
+                            <p>All source charts consolidated into one clean section.</p>
+                        </div>
+                        @await Html.PartialAsync("_CategoryCharts", (summaryCategory, Model.Summary, Model.KpiSettings))
+                        <ul class="ad-source-legend" aria-label="Data sources">
+                            @foreach (var source in sourceSplit)
+                            {
+                                <li><span class="ad-source-swatch" style="--source-color: @SourceColor(source.Source)"></span><span>@source.Source</span><strong>@source.Count.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)</strong></li>
+                            }
+                            @if (showArsManagedObjects)
+                            {
+                                <li class="ad-source-ars"><span class="ad-source-swatch" aria-hidden="true"></span><span>ARS managed objects</span><strong>@(managedObjectsResult.Error ?? managedObjectsResult.Count.ToString("N0", System.Globalization.CultureInfo.CurrentCulture))</strong></li>
+                            }
+                        </ul>
+                    </section>
+                }
+
+                @if (Model.KpiSettings.IsCategoryEnabled(CategoryInfo.ADGovernance.Key))
+                {
+                    <details class="iris-accordion ad-governance-card" open>
+                        <summary class="iris-accordion-header ad-governance-header" aria-labelledby="ad-governance-title" aria-expanded="true">
+                            <span class="iris-accordion-caret" aria-hidden="true"></span>
+                            <span class="ad-governance-heading">
+                                <h2 id="ad-governance-title">@CategoryInfo.ADGovernance.DisplayName</h2>
+                                <span class="ad-risk-badge @(actionRequiredCount == 0 ? "clear" : "")">@(actionRequiredCount == 0 ? "No action required" : "Action Required")</span>
+                            </span>
+                        </summary>
+                        <div class="iris-accordion-content ad-governance-content" id="ad-governance-content">
+                          <div class="ad-governance-surface">
+                            <div class="ad-risk-groups">
+                            @foreach (var group in riskGroups)
+                            {
+                                <div class="ad-risk-group">
+                                    @foreach (var key in group)
+                                    {
+                                        if (!riskKpis.TryGetValue(key, out var kpi)) { continue; }
+                                        var result = Model.Summary.GetKpiResult(kpi.Key);
+                                        var isRisk = result.Error != null || result.Count > 0;
+                                        <button type="button" class="kpi ad-risk-row @(isRisk ? "has-risk" : "is-clear")" data-section="@kpi.SectionId" aria-label="@kpi.Label: @(result.Error ?? result.Count.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)). View details">
+                                            <span class="ad-risk-icon @(isRisk ? "has-risk" : "")" aria-hidden="true"></span>
+                                            <span class="ad-risk-copy">
+                                                <span class="ad-risk-title">@kpi.Label</span>
+                                                <span class="ad-risk-description">@RiskDescription(key)</span>
+                                            </span>
+                                            <span class="ad-risk-value">@(result.Error ?? result.Count.ToString("N0", System.Globalization.CultureInfo.CurrentCulture))</span>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                            </div>
+                          </div>
+                        </div>
+                    </details>
+                }
+
+                <details class="iris-accordion ad-additional-metrics">
+                    <summary class="iris-accordion-header" aria-expanded="false"><span class="iris-accordion-caret" aria-hidden="true"></span><span>Additional metrics</span></summary>
+                    <div class="iris-accordion-content ad-additional-metrics-content">
+                    @foreach (var category in CategoryInfo.ForDashboard(DashboardInfo.ActiveDirectory)
+                        .Where(category => !category.IsOverviewCategory && !category.IsRiskCategory && Model.KpiSettings.IsCategoryEnabled(category.Key)))
+                    {
+                        var categoryKpis = KpiInfo.ForCategory(category).Where(kpi => !kpi.IsRiskKpi).ToList();
+                        if (!categoryKpis.Any(kpi => Model.KpiSettings.IsKpiEnabled(kpi.CategoryKey, kpi.Key))) { continue; }
+                        <section class="ad-additional-category">
+                            <h3>@category.DisplayName</h3>
+                            <div class="kpi-grid">
+                                @foreach (var kpi in categoryKpis)
+                                {
+                                    if (!Model.KpiSettings.IsKpiEnabled(kpi.CategoryKey, kpi.Key)) { continue; }
+                                    var result = Model.Summary.GetKpiResult(kpi.Key);
+                                    var hasRisk = kpi.IsRiskKpi && (result.Error != null || result.Count > 0);
+                                    <button type="button" class="kpi @kpi.CssColor iris-kpi-row @(kpi.IsRiskKpi ? "is-risk" : "") @(hasRisk ? "has-risk" : "")" data-section="@kpi.SectionId">
+                                        <span class="lbl">@kpi.Label</span>
+                                        <span class="val">@(result.Error ?? result.Count.ToString("N0", System.Globalization.CultureInfo.CurrentCulture))</span>
+                                    </button>
+                                }
+                            </div>
+                            @await Html.PartialAsync("_CategoryCharts", (category, Model.Summary, Model.KpiSettings))
+                        </section>
+                    }
+                    </div>
+                </details>
+
+                <div class="panel-grid ad-drilldown-panels">
+                    @await Html.PartialAsync("_ADDrillDownPanels")
+                </div>
+
+                @if (Model.CanRunPerformanceTests(DiagnosticsDashboard.ActiveDirectory))
+                {
+                    ViewData["PerfDashboard"] = "ActiveDirectory";
+                    @await Html.PartialAsync("_PerformanceTests")
+                }
+            </div>
+                <footer class="footer">Active Roles Dashboard</footer>
+            </div>
+        </main>
+    </div>
+</div>
+@{
+    ViewData["DashboardKey"] = "ActiveDirectory";
+}
+@if (Model.CanExportDashboardData)
+{
+    @await Html.PartialAsync("_ExportDialog", viewData: ViewData)
+}
+<partial name="_KpiDetailModal" />
+@await Html.PartialAsync("_EntraMembershipConfig")
+@await Html.PartialAsync("_ToastAndMembership")
+@await Html.PartialAsync("_AppBaseScript")
+<script src="js/chart.umd.min.js" asp-append-version="true"></script>
+<script src="js/iris-chart-theme.js" asp-append-version="true"></script>
+<script src="js/dashboard.js" asp-append-version="true"></script>
+@if (Model.AutoRefreshMinutes > 0)
+{
+<script>
+    setTimeout(function() { document.getElementById('loadingOverlay').classList.add('active'); window.location.reload(); }, @(Model.AutoRefreshMinutes * 60 * 1000));
+</script>
+}
+<script>
+    document.getElementById('loadingOverlay').classList.remove('active');
+    window.addEventListener('beforeunload', function() {
+        if (window.__isExporting) return;
+        document.getElementById('loadingOverlay').classList.add('active');
+    });
+    document.getElementById('btnRefresh').addEventListener('click', function() {
+        document.getElementById('loadingOverlay').classList.add('active');
+        window.location.reload();
+    });
+    document.getElementById('sidebarToggle').addEventListener('click', function() {
+        var collapsed = document.body.classList.toggle('ad-sidebar-collapsed');
+        this.setAttribute('aria-expanded', String(!collapsed));
+        this.setAttribute('aria-label', collapsed ? 'Expand navigation' : 'Collapse navigation');
+    });
+    var rebuildForm = document.getElementById('rebuildCacheForm');
+    if (rebuildForm) {
+        rebuildForm.addEventListener('submit', function() {
+            var button = document.getElementById('btnRebuildCache');
+            button.disabled = true;
+            button.setAttribute('aria-disabled', 'true');
+            button.classList.add('is-spinning');
+            window.cacheRebuildInFlight = true;
+            try { sessionStorage.setItem('cacheRebuildInFlight', '1'); } catch (e) { }
+        });
+    }
+    function openWebInterface(url) {
+        window.open(url, 'arWebInterface');
+    }
+    function moveDashboardTabIndicator(animate) {
+        var tabs = document.querySelector('.ad-tabs');
+        var activeTab = tabs && tabs.querySelector('a.active');
+        var indicator = tabs && tabs.querySelector('.ad-tabs-indicator');
+        if (!activeTab || !indicator) return;
+
+        if (!animate) indicator.classList.add('no-transition');
+        indicator.style.width = activeTab.offsetWidth + 'px';
+        indicator.style.transform = 'translateX(' + activeTab.offsetLeft + 'px)';
+        indicator.classList.add('is-visible');
+        if (!animate) requestAnimationFrame(function () { indicator.classList.remove('no-transition'); });
+    }
+    moveDashboardTabIndicator(false);
+    window.addEventListener('resize', function () { moveDashboardTabIndicator(false); });
+    function toggleCategory(button) {
+        var category = button.closest('.kpi-category');
+        category.classList.toggle('collapsed');
+        button.classList.toggle('collapsed');
+        button.title = category.classList.contains('collapsed') ? 'Expand' : 'Collapse';
+    }
+    function activateDashboardTab(tab, updateHistory) {
+        var content = document.querySelector('.ad-content-scroll');
+        var key = tab.dataset.dashboardKey;
+        if (!content || !key) return Promise.resolve();
+
+        content.setAttribute('aria-busy', 'true');
+        return fetch(tab.dataset.dashboardUrl, { credentials: 'same-origin' })
+            .then(function (response) {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return null;
+                }
+                if (!response.ok) throw new Error('Dashboard content could not be loaded.');
+                return response.text();
+            })
+            .then(function (html) {
+                if (html === null) return;
+                var parsed = new DOMParser().parseFromString(html, 'text/html');
+                var figmaContent = parsed.querySelector('.ad-content-scroll');
+                if (figmaContent) {
+                    content.innerHTML = figmaContent.innerHTML;
+                } else {
+                    var legacyPage = parsed.querySelector('.page');
+                    if (!legacyPage) throw new Error('Dashboard content was not found.');
+                    var legacyHeader = legacyPage.querySelector('.sticky-head');
+                    if (legacyHeader) legacyHeader.remove();
+                    content.innerHTML = '<div class="ad-legacy-content">' + legacyPage.innerHTML + '</div>';
+                }
+                if (typeof initializeKpiDetailTriggers === 'function') initializeKpiDetailTriggers(content);
+                if (typeof initializeIrisAccordions === 'function') initializeIrisAccordions(content);
+
+                document.querySelectorAll('.ad-tabs [data-dashboard-key]').forEach(function (link) {
+                    var selected = link.dataset.dashboardKey === key;
+                    link.classList.toggle('active', selected);
+                    if (selected) link.setAttribute('aria-current', 'page');
+                    else link.removeAttribute('aria-current');
+                });
+                moveDashboardTabIndicator(true);
+
+                var tabLabel = tab.textContent.trim();
+                var title = key === 'Overview' ? 'Overview' : tabLabel + ' Dashboard';
+                document.getElementById('ad-dashboard-title').textContent = title;
+                document.title = key === 'Overview' ? 'Active Roles Dashboard - Overview' : 'Active Roles Dashboard - ' + tabLabel;
+                content.scrollTop = 0;
+                if (typeof initCategoryCharts === 'function') initCategoryCharts();
+                if (typeof initTableSort === 'function') initTableSort();
+                if (typeof animateDashboardVisuals === 'function') animateDashboardVisuals(content);
+                if (typeof animateDashboardVisuals === 'function') animateDashboardVisuals(content);
+
+                if (updateHistory) {
+                    var url = new URL(window.location.pathname, window.location.origin);
+                    url.searchParams.set('dashboard', key);
+                    history.pushState({ dashboard: key }, '', url);
+                }
+            })
+            .catch(function (error) {
+                window.showToast(error.message || 'Dashboard content could not be loaded.', 'error');
+            })
+            .finally(function () {
+                content.removeAttribute('aria-busy');
+            });
+    }
+    document.querySelector('.ad-tabs').addEventListener('click', function (event) {
+        var tab = event.target.closest('a[data-dashboard-key]');
+        if (!tab) return;
+        event.preventDefault();
+        if (!tab.classList.contains('active')) activateDashboardTab(tab, true);
+    });
+    window.addEventListener('popstate', function () {
+        var key = new URLSearchParams(window.location.search).get('dashboard') || 'Overview';
+        var tab = document.querySelector('.ad-tabs [data-dashboard-key="' + key + '"]');
+        if (tab) activateDashboardTab(tab, false);
+    });
+    var requestedTabLink = document.querySelector('.ad-tabs [data-dashboard-key="@currentTabKey"]');
+    var serverRenderedTabKey = window.location.pathname.toLowerCase().endsWith('/activedirectory') ? 'ActiveDirectory' : 'Overview';
+    if (requestedTabLink && requestedTabLink.dataset.dashboardKey !== serverRenderedTabKey) activateDashboardTab(requestedTabLink, false);
+    else if (typeof animateDashboardVisuals === 'function') animateDashboardVisuals(document.querySelector('.ad-content-scroll'));
+    else if (typeof animateDashboardVisuals === 'function') animateDashboardVisuals(document.querySelector('.ad-content-scroll'));
+    (function () {
+        var params = new URLSearchParams(window.location.search);
+        if (!params.has('refreshFrom')) return;
+
+        var baseline = parseInt(params.get('refreshFrom'), 10);
+        if (isNaN(baseline)) return;
+
+        var msgSuccess = @Html.Raw(Json.Serialize(Localizer["CacheRebuild_Completed"].Value));
+        var msgFailed = @Html.Raw(Json.Serialize(Localizer["RefreshFailed"].Value));
+        var msgStarted = @Html.Raw(Json.Serialize(Localizer["CacheRebuild_Started"].Value));
+        var rebuildButton = document.getElementById('btnRebuildCache');
+        var startedKey = 'cacheRebuildStarted:' + baseline;
+        var attempts = 0;
+        var timer;
+
+        window.cacheRebuildInFlight = true;
+        if (rebuildButton) {
+            rebuildButton.disabled = true;
+            rebuildButton.setAttribute('aria-disabled', 'true');
+            rebuildButton.classList.add('is-spinning');
+        }
+        if (!sessionStorage.getItem(startedKey)) {
+            sessionStorage.setItem(startedKey, '1');
+            window.showToast(msgStarted, 'info');
+        }
+
+        function finish(data) {
+            window.cacheRebuildInFlight = false;
+            try { sessionStorage.removeItem('cacheRebuildInFlight'); } catch (e) { }
+            sessionStorage.removeItem(startedKey);
+            if (rebuildButton) {
+                rebuildButton.disabled = false;
+                rebuildButton.setAttribute('aria-disabled', 'false');
+                rebuildButton.classList.remove('is-spinning');
+            }
+            params.delete('refreshFrom');
+            window.history.replaceState({}, document.title, window.location.pathname + (params.toString() ? '?' + params.toString() : ''));
+            if (data && data.failed) window.showToast(data.error ? msgFailed + ' ' + data.error : msgFailed, 'error');
+            else if (data && data.sequence > baseline) window.showToast(msgSuccess, 'success');
+        }
+
+        timer = setInterval(function () {
+            attempts++;
+            fetch(appBase + '/?handler=RefreshStatus', { headers: { 'Accept': 'application/json' } })
+                .then(function (response) { return response.ok ? response.json() : null; })
+                .then(function (data) {
+                    if (!data || data.authorized === false || data.sequence > baseline || attempts >= 150) {
+                        clearInterval(timer);
+                        finish(data);
+                    }
+                })
+                .catch(function () { if (attempts >= 150) { clearInterval(timer); finish(null); } });
+        }, 2000);
+    })();
+</script>

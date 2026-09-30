@@ -50,27 +50,29 @@
         }
         // Overview and Governance and Risk are expanded by default; all others collapse.
         var expanded = category.IsOverviewCategory || category.IsRiskCategory;
-        var collapsedClass = expanded ? "" : " collapsed";
-        var btnCollapsedClass = expanded ? "" : " collapsed";
-        var btnTitle = expanded ? "Collapse" : "Expand";
         renderedCount++;
 
         var kpis = KpiInfo.ForCategory(category);
-    <div class="kpi-category@(collapsedClass)">
-        <h2 class="kpi-category-title"><span>@category.DisplayName</span><button type="button" class="btn-collapse@(btnCollapsedClass)" onclick="toggleCategory(this)" title="@btnTitle">&#9650;</button></h2>
-        <div class="kpi-grid">
+        <details class="kpi-category iris-accordion" open="@(expanded ? "open" : null)">
+            <summary class="iris-accordion-header kpi-category-title" aria-expanded="@(expanded ? "true" : "false")"><span class="iris-accordion-caret" aria-hidden="true"></span><span>@category.DisplayName</span></summary>
+                <div class="iris-accordion-content">
+                    <div class="iris-accordion-surface">
+                <div class="kpi-grid">
             @foreach (var kpi in kpis)
             {
                 if (!Model.KpiSettings.IsKpiEnabled(category.Key, kpi.Key)) { continue; }
                 var result = Model.Summary.ExchangeKpi(kpi.Key);
-            <div class="kpi @kpi.CssColor" data-section="@kpi.SectionId">
+                var hasRisk = kpi.IsRiskKpi && (result.Error != null || result.TotalCount > 0);
+            <div class="kpi @kpi.CssColor iris-kpi-row @(kpi.IsRiskKpi ? "is-risk" : "") @(hasRisk ? "has-risk" : "")" data-section="@kpi.SectionId">
                 <div class="lbl">@kpi.Label</div>
                 <div class="val">@(result.Error ?? result.TotalCount.ToString())</div>
             </div>
             }
         </div>
         @await Html.PartialAsync("_CategoryCharts", (category, Model.Summary, Model.KpiSettings))
-    </div>
+                    </div>
+                </div>
+    </details>
     }
 
     <hr class="kpi-separator" />

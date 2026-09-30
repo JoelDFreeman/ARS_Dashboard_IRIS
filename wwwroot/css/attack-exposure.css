@@ -1,0 +1,315 @@
+.exp-page-content {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px 40px 24px;
+}
+
+.exp-page-title {
+    margin: 0;
+}
+
+.exp-title-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.exp-title-info {
+    display: inline-flex;
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px;
+    cursor: help;
+}
+
+.exp-page-title h1 {
+    margin: 0;
+    color: var(--oi-content-color-primary);
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 40px;
+}
+
+.atk-matrix.exp-sequential {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 24px;
+    margin: 0;
+    order: 2;
+}
+
+.exp-tactic {
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--oi-border-color-default);
+    border-radius: 8px;
+    background: var(--oi-background-color-primary);
+}
+
+.exp-tactic > summary,
+.exp-technique > summary,
+.exp-history-accordion > summary {
+    list-style: none;
+}
+
+.exp-tactic > summary::-webkit-details-marker,
+.exp-technique > summary::-webkit-details-marker,
+.exp-history-accordion > summary::-webkit-details-marker {
+    display: none;
+}
+
+.exp-tactic-header {
+    display: flex;
+    min-height: 40px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: var(--oi-spacing-xs);
+    border-bottom: 1px solid var(--oi-border-color-muted);
+    background: var(--oi-background-color-primary);
+    color: var(--oi-content-color-primary);
+    cursor: pointer;
+}
+
+.exp-accordion-label,
+.exp-tactic-meta {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+}
+
+.exp-accordion-label > span {
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.exp-tactic-caret,
+.exp-technique-caret {
+    display: block;
+    flex: 0 0 16px;
+    width: 16px;
+    height: 24px;
+    transition: transform var(--oi-motion-duration-short) var(--oi-motion-ease-default);
+}
+
+.exp-tactic:not([open]) > .exp-tactic-header .exp-tactic-caret,
+.exp-technique:not([open]) > .exp-technique-header .exp-technique-caret {
+    transform: none;
+}
+
+.exp-tactic-meta {
+    flex: 0 0 auto;
+    gap: 12px;
+}
+
+.atk-tactic-id {
+    color: var(--oi-content-color-primary);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    opacity: .7;
+}
+
+.exp-level-badge {
+    display: inline-flex;
+    min-height: 24px;
+    align-items: center;
+    padding: 1px 6px;
+    border: 1px solid var(--oi-border-color-default);
+    border-radius: var(--oi-border-radius-default);
+    background: var(--oi-background-color-primary);
+    color: var(--oi-content-color-primary);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    white-space: nowrap;
+}
+
+.exp-level-badge.exp-high {
+    border-color: var(--oi-border-color-badge-error);
+    color: var(--oi-content-color-error);
+}
+
+.exp-level-badge.exp-medium {
+    border-color: var(--oi-border-color-badge-warning);
+    color: var(--oi-content-color-warning);
+}
+
+.exp-level-badge.exp-low {
+    border-color: var(--oi-border-color-badge-info);
+    color: var(--oi-content-color-info);
+}
+
+.exp-tactic-body {
+    border-top: 1px solid var(--oi-border-color-muted);
+}
+
+.exp-technique {
+    border-bottom: 1px solid var(--oi-border-color-muted);
+}
+
+.exp-technique:last-child {
+    border-bottom: 0;
+}
+
+.exp-technique-header {
+    display: flex;
+    min-height: 40px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: var(--oi-spacing-xs);
+    background: var(--oi-background-color-primary);
+    cursor: pointer;
+}
+
+.exp-technique-header:hover {
+    background: var(--oi-background-color-secondary);
+}
+
+.exp-technique-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0 16px 16px 48px;
+}
+
+.exp-technique-description {
+    margin: 0;
+    color: var(--oi-content-color-secondary);
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.exp-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px 24px;
+}
+
+.exp-metric {
+    display: inline-flex;
+    min-height: 20px;
+    align-items: center;
+    gap: 8px;
+    color: var(--oi-content-color-tertiary);
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.exp-metric-dot {
+    flex: 0 0 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--oi-content-color-tertiary);
+}
+
+.exp-metric-dot.exp-high { background: var(--oi-base-color-error); }
+.exp-metric-dot.exp-medium { background: var(--oi-base-color-warning); }
+.exp-metric-dot.exp-low { background: var(--oi-base-color-brand); }
+
+.exp-metric strong {
+    color: var(--oi-content-color-primary);
+    font-size: 14px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.exp-mitigation {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    border: 1px solid var(--oi-border-color-muted);
+    border-radius: 6px;
+    background: var(--oi-background-color-secondary);
+    color: var(--oi-content-color-secondary);
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.exp-mitigation strong {
+    color: var(--oi-content-color-primary);
+    font-weight: 600;
+}
+
+.exp-history-accordion {
+    order: 3;
+    overflow: hidden;
+    border-radius: var(--oi-border-radius-l);
+    background: var(--oi-background-color-secondary);
+}
+
+.exp-history-accordion > summary {
+    display: flex;
+    min-height: 40px;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--oi-spacing-xs);
+    padding: var(--oi-spacing-xs);
+    border-bottom: 1px solid var(--oi-border-color-muted);
+    background: var(--oi-background-color-primary);
+    color: var(--oi-content-color-primary);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    cursor: pointer;
+}
+
+.exp-history-accordion > summary::after {
+    display: none;
+    content: none;
+}
+
+.exp-history-accordion[open] > summary::after {
+    display: none;
+}
+
+.exp-history-content {
+    margin: 0;
+    padding: var(--oi-spacing-l);
+    border: 0;
+    border-radius: 0;
+    background: var(--oi-background-color-primary);
+}
+
+@media (max-width: 700px) {
+    .exp-tactic-header, .exp-technique-header { padding-right: 10px; padding-left: 10px; }
+    .exp-technique-content { padding-right: 10px; padding-left: 34px; }
+    .exp-tactic-meta { gap: 6px; }
+    .exp-level-badge { font-size: 12px; }
+}
+
+@media (max-width: 900px) {
+    .exp-page-content {
+        padding: 24px 24px;
+    }
+}
+
+@media (max-width: 768px) {
+    .exp-page-content {
+        padding: 24px 16px 24px;
+    }
+
+    .exp-page-title h1 {
+        font-size: 26px;
+        line-height: 32px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .exp-tactic-caret, .exp-technique-caret, .exp-history-accordion > summary::after { transition: none; }
+}
+
+.exp-tactic-caret { background-color: var(--oi-content-color-primary); mask: url('../images/figma-attack-caret-tactic.svg') center / contain no-repeat; -webkit-mask: url('../images/figma-attack-caret-tactic.svg') center / contain no-repeat; }
+.exp-technique-caret { background-color: var(--oi-content-color-tertiary); mask: url('../images/figma-attack-caret-technique.svg') center / contain no-repeat; -webkit-mask: url('../images/figma-attack-caret-technique.svg') center / contain no-repeat; }

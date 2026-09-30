@@ -13,40 +13,51 @@
     var showSnapshots = ViewData["ShowSnapshots"] as bool? ?? true;
     var showAttackExposure = ViewData["ShowAttackExposure"] as bool? ?? true;
     var showAssessments = ViewData["ShowAssessments"] as bool? ?? true;
+    var useFigmaNavigation = ViewData["UseFigmaNavigation"] as bool? ?? false;
+    var showDashboardActions = ViewData["ShowSidebarDashboardActions"] as bool? ?? true;
+    var sidebarTitle = ViewData["SidebarTitle"] as string ?? "Active Roles KPI Dashboard";
+    var dashboardLabel = ViewData["SidebarDashboardLabel"] as string ?? Localizer["Home"].Value;
     bool IsActive(string path) => currentPath.Equals(path, StringComparison.OrdinalIgnoreCase);
 }
-<aside class="sidebar" aria-label="Main navigation">
+<aside class="sidebar@(useFigmaNavigation ? " sidebar-figma" : "")" aria-label="Main navigation">
     <div class="sidebar-header">
-        <span class="sidebar-logo"><img src="images/iris-brand-logo.svg" alt="" /></span>
-        <span class="sidebar-title">Active Roles KPI Dashboard</span>
+        <span class="sidebar-logo"><img src="images/@(useFigmaNavigation ? "figma-active-roles.svg" : "iris-brand-logo.svg")" alt="" /></span>
+        <span class="sidebar-title">@sidebarTitle</span>
     </div>
+    <span class="sidebar-active-indicator" aria-hidden="true"></span>
     <nav class="sidebar-nav-group">
-        <a href="@(appBase)/?cached=true" class="sidebar-nav-item" aria-current="@(IsActive("/") ? "page" : null)">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            <span>@Localizer["Home"]</span>
+        <a href="@(appBase)/?cached=true" class="sidebar-nav-item" aria-current="@(IsActive("/") || (useFigmaNavigation && IsActive("/ActiveDirectory")) ? "page" : null)">
+            @if (useFigmaNavigation) { <span class="sidebar-nav-asset sidebar-nav-asset-dashboard" aria-hidden="true"></span> }
+            else { <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> }
+            <span>@dashboardLabel</span>
         </a>
         @if (showAssessments)
         {
             <a href="@(appBase)/Assessments" class="sidebar-nav-item" aria-current="@(IsActive("/Assessments") ? "page" : null)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                @if (useFigmaNavigation) { <span class="sidebar-nav-asset sidebar-nav-asset-assessment" aria-hidden="true"></span> }
+                else { <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> }
                 <span>@Localizer["Assessment"]</span>
             </a>
         }
         @if (showAttackExposure)
         {
             <a href="@(appBase)/AttackExposure" class="sidebar-nav-item" aria-current="@(IsActive("/AttackExposure") ? "page" : null)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                @if (useFigmaNavigation) { <span class="sidebar-nav-asset sidebar-nav-asset-exposure" aria-hidden="true"></span> }
+                else { <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> }
                 <span>@Localizer["AttackExposure"]</span>
             </a>
         }
         @if (showSnapshots)
         {
             <a href="@(appBase)/Snapshots" class="sidebar-nav-item" aria-current="@(IsActive("/Snapshots") ? "page" : null)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                @if (useFigmaNavigation) { <span class="sidebar-nav-asset sidebar-nav-asset-snapshots" aria-hidden="true"></span> }
+                else { <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> }
                 <span>@Localizer["Snapshots"]</span>
             </a>
         }
     </nav>
+    @if (showDashboardActions)
+    {
     <div class="sidebar-nav-group">
         <div class="sidebar-nav-group-header">@Localizer["ViewSettings"]</div>
         <a href="@(appBase)/?cached=true" class="sidebar-nav-item" id="btnRefresh">
@@ -78,19 +89,71 @@
             </script>
         }
     </div>
+    }
     <div class="sidebar-nav-group">
-        <div class="sidebar-nav-group-header">@Localizer["Other"]</div>
+        <div class="sidebar-nav-group-header">
+            <span>@Localizer["Other"]</span>
+            @if (useFigmaNavigation) { <span class="sidebar-group-caret" aria-hidden="true"></span> }
+        </div>
         @if (showSettings)
         {
             <a href="@(appBase)/Settings" class="sidebar-nav-item" aria-current="@(IsActive("/Settings") ? "page" : null)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.08 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z"/></svg>
+                @if (useFigmaNavigation) { <span class="sidebar-nav-asset sidebar-nav-asset-settings" aria-hidden="true"></span> }
+                else { <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.08 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z"/></svg> }
                 <span>@Localizer["Settings"]</span>
             </a>
         }
         @* "Help with" has no destination defined yet — placeholder per Designer's answer, not a real link. *@
         <span class="sidebar-nav-item sidebar-nav-item-disabled" aria-disabled="true">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            @if (useFigmaNavigation) { <span class="sidebar-nav-asset sidebar-nav-asset-help" aria-hidden="true"></span> }
+            else { <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> }
             <span>@Localizer["HelpWith"]</span>
         </span>
     </div>
 </aside>
+<script>
+    (function () {
+        var sidebar = document.querySelector('.sidebar');
+        var indicator = sidebar && sidebar.querySelector('.sidebar-active-indicator');
+        var active = sidebar && sidebar.querySelector('a.sidebar-nav-item[aria-current="page"]');
+        if (!sidebar || !indicator || !active) return;
+
+        var navLinks = Array.prototype.slice.call(sidebar.querySelectorAll('a.sidebar-nav-item'));
+        var href = function (link) { return link.getAttribute('href'); };
+        var top = function (link) {
+            return link.getBoundingClientRect().top - sidebar.getBoundingClientRect().top + sidebar.scrollTop + 4;
+        };
+        var targetTop = top(active);
+        var previousHref = null;
+        try {
+            previousHref = sessionStorage.getItem('ars.sidebarPreviousHref');
+            sessionStorage.removeItem('ars.sidebarPreviousHref');
+        } catch (e) { }
+
+        indicator.style.top = targetTop + 'px';
+        sidebar.classList.add('has-sidebar-indicator');
+        var previous = previousHref && navLinks.find(function (link) { return href(link) === previousHref; });
+        var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (previous && previous !== active && !reduceMotion && window.innerWidth > 768) {
+            indicator.classList.add('no-transition');
+            indicator.style.transform = 'translateY(' + (top(previous) - targetTop) + 'px)';
+            indicator.classList.add('is-visible');
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    indicator.classList.remove('no-transition');
+                    indicator.style.transform = 'translateY(0)';
+                });
+            });
+        } else {
+            indicator.classList.add('no-transition', 'is-visible');
+            indicator.style.transform = 'translateY(0)';
+            requestAnimationFrame(function () { indicator.classList.remove('no-transition'); });
+        }
+
+        sidebar.addEventListener('click', function (event) {
+            var link = event.target.closest('a.sidebar-nav-item');
+            if (!link || link === active) return;
+            try { sessionStorage.setItem('ars.sidebarPreviousHref', href(active)); } catch (e) { }
+        });
+    })();
+</script>

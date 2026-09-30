@@ -14,6 +14,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Active Roles Dashboard - Assessment</title>
     <link rel="stylesheet" href="css/dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="css/assessment.css" asp-append-version="true" />
 </head>
 <body>
 <div class="loading-overlay" id="loadingOverlay">
@@ -22,16 +23,28 @@
         <p>@Localizer["RunningAssessment"]</p>
     </div>
 </div>
-<div class="page">
+<div class="page iris-nav-page assessment-page">
     <div class="sticky-head">
     @{
         ViewData["HeaderKey"] = "Assessments";
         ViewData["RefreshUrl"] = "/Assessments"; ViewData["ShowHome"] = true;
+        ViewData["UseFigmaNavigation"] = true;
+        ViewData["ShowSidebarDashboardActions"] = false;
+        ViewData["SidebarTitle"] = "Active Roles";
+        ViewData["SidebarDashboardLabel"] = "Dashboard";
+        ViewData["ShowDashboardNavigation"] = false;
     }
     <partial name="_DashboardHeader" />
-
-    <a href="@(pathBase)/?cached=true" class="back-link">&larr; @Localizer["BackToDashboard"]</a>
     </div>
+
+    <main class="assessment-content">
+    <div class="assessment-fixed">
+    <section class="asmt-page-title">
+        <div class="asmt-title-group">
+            <h1>Assessment</h1>
+            <span class="asmt-title-info iris-icon-info" title="Run security and compliance assessments against your environment." aria-label="Run security and compliance assessments against your environment."></span>
+        </div>
+    </section>
 
     @if (!string.IsNullOrEmpty(Model.StatusMessage))
     {
@@ -68,7 +81,7 @@
 
         <section class="asmt-card">
             <h2>@Localizer["CompareRuns", Models.AssessmentTypeInfo.DisplayName(Model.Type)]</h2>
-            @if (Model.History.Count < 2)
+            @if (Model.History.Count == 0)
             {
                 <p class="snap-hint">@Localizer["CompareHint", Models.AssessmentTypeInfo.DisplayName(Model.Type)]</p>
             }
@@ -101,6 +114,8 @@
         </section>
     </div>
 
+    </div>
+    <div class="page-content assessment-scroll">
     @{
         var asmtScopeNote = Models.AssessmentTypeInfo.Description(Model.Type);
     }
@@ -314,16 +329,19 @@
 
         @foreach (var category in a.Categories)
         {
-            <section class="asmt-card">
-                <h2 class="asmt-cat-title">
-                    @Services.AssessmentLocalizer.Category(category.Name)
+            <details class="asmt-card iris-accordion asmt-results-accordion" open>
+                <summary class="iris-accordion-header asmt-cat-title" aria-expanded="true">
+                    <span class="iris-accordion-caret" aria-hidden="true"></span>
+                    <span class="asmt-category-name">@Services.AssessmentLocalizer.Category(category.Name)</span>
                     <span class="asmt-cat-counts">
                         @if (category.FailCount > 0) { <span class="asmt-tag asmt-tag-fail">@category.FailCount @Localizer["Tag_Fail"]</span> }
                         @if (category.WarnCount > 0) { <span class="asmt-tag asmt-tag-warn">@category.WarnCount @Localizer["Tag_Warn"]</span> }
                         <span class="asmt-tag asmt-tag-pass">@category.PassCount @Localizer["Tag_Pass"]</span>
                     </span>
-                </h2>
-                <table class="snap-table asmt-table">
+                </summary>
+                <div class="iris-accordion-content asmt-results-body">
+                  <div class="asmt-table-scroll">
+                    <table class="snap-table asmt-table">
                     <colgroup>
                         <col class="asmt-col-check" />
                         <col class="asmt-col-sev" />
@@ -369,11 +387,15 @@
                             </tr>
                         }
                     </tbody>
-                </table>
-            </section>
+                                        </table>
+                                    </div>
+                                </div>
+                        </details>
         }
     }
+    </div>
     @await Html.PartialAsync("_EntraMembershipConfig")
+    </main>
 </div>
 <div id="assessments-i18n"
      data-run-blocked="@Localizer["RunBlockedTitle"]"
@@ -385,6 +407,7 @@
      data-chart-checks="@Localizer["Chart_Checks"]"
      hidden></div>
 <script src="js/chart.umd.min.js" asp-append-version="true"></script>
+<script src="js/iris-chart-theme.js" asp-append-version="true"></script>
 <script>
     (function () {
         // Localized strings emitted by the #assessments-i18n element (English fallbacks kept).
@@ -510,8 +533,8 @@
                         label: i18n.chartScore,
                         data: scores,
                         yAxisID: 'yScore',
-                        borderColor: '#2563eb',
-                        backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                        borderColor: window.irisChartTokens.color('blue'),
+                        backgroundColor: window.irisChartTokens.rgba('blue', 0.12),
                         fill: true,
                         tension: 0.25,
                         pointRadius: 3
@@ -520,16 +543,16 @@
                         label: i18n.chartFailing,
                         data: fails,
                         yAxisID: 'yFails',
-                        borderColor: '#dc2626',
-                        backgroundColor: 'rgba(220, 38, 38, 0.0)',
+                        borderColor: window.irisChartTokens.token('--oi-content-color-error'),
+                        backgroundColor: window.irisChartTokens.rgba('--oi-content-color-error', 0),
                         borderDash: [5, 4],
                         tension: 0.25,
                         pointRadius: 3
                     },
-                    thresholdLine(90, 'rgba(5, 150, 105, 0.5)'),
-                    thresholdLine(80, 'rgba(101, 163, 13, 0.45)'),
-                    thresholdLine(70, 'rgba(217, 119, 6, 0.45)'),
-                    thresholdLine(60, 'rgba(234, 88, 12, 0.45)')
+                    thresholdLine(90, window.irisChartTokens.rgba('--oi-content-color-success', 0.5)),
+                    thresholdLine(80, window.irisChartTokens.rgba('--oi-chart-color-green', 0.45)),
+                    thresholdLine(70, window.irisChartTokens.rgba('--oi-content-color-warning', 0.45)),
+                    thresholdLine(60, window.irisChartTokens.rgba('--oi-chart-color-orange', 0.45))
                 ]
             },
             options: {
@@ -585,8 +608,8 @@
                         {
                             label: i18n.chartPass,
                             data: passData,
-                            borderColor: '#059669',
-                            backgroundColor: 'rgba(5, 150, 105, 0.35)',
+                            borderColor: window.irisChartTokens.token('--oi-content-color-success'),
+                            backgroundColor: window.irisChartTokens.token('--oi-background-color-success'),
                             fill: true,
                             tension: 0.25,
                             pointRadius: 2
@@ -594,8 +617,8 @@
                         {
                             label: i18n.chartWarning,
                             data: warnData,
-                            borderColor: '#d97706',
-                            backgroundColor: 'rgba(217, 119, 6, 0.35)',
+                            borderColor: window.irisChartTokens.token('--oi-content-color-warning'),
+                            backgroundColor: window.irisChartTokens.token('--oi-background-color-warning'),
                             fill: true,
                             tension: 0.25,
                             pointRadius: 2
@@ -603,8 +626,8 @@
                         {
                             label: i18n.chartFail,
                             data: failData,
-                            borderColor: '#dc2626',
-                            backgroundColor: 'rgba(220, 38, 38, 0.35)',
+                            borderColor: window.irisChartTokens.token('--oi-content-color-error'),
+                            backgroundColor: window.irisChartTokens.token('--oi-background-color-error'),
                             fill: true,
                             tension: 0.25,
                             pointRadius: 2

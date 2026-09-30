@@ -13,14 +13,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Active Roles Dashboard</title>
     <link rel="stylesheet" href="css/dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="css/ad-dashboard.css" asp-append-version="true" />
 </head>
-<body>
+<body class="@(Model.CanViewActiveDirectoryDashboard ? "ad-dashboard-design" : "")">
 <div class="loading-overlay active" id="loadingOverlay">
     <div class="loading-spinner">
         <div class="spinner"></div>
         <p>@Localizer["LoadingDashboardData"]</p>
     </div>
 </div>
+@if (Model.CanViewActiveDirectoryDashboard)
+{
+    @await Html.PartialAsync("_AdDashboardFrame", Model)
+}
+else
+{
 <div class="page page-scroll-inner">
     @{
         ViewData["HeaderKey"] = "Index";
@@ -213,5 +220,6 @@
         }, 2000);
     })();
 </script>
+}
 </body>
 </html>

@@ -1,27 +1,266 @@
 ﻿// Dashboard interactivity
 
-// KPI click -> toggle panel visibility
-function openDashboardSection(section, scroll) {
-    const panel = document.getElementById('panel-' + section);
-    if (!panel) return false;
+const getIrisTokenColor = tokenName => window.irisChartTokens?.token(tokenName) || getComputedStyle(document.body).getPropertyValue(tokenName).trim();
+const getIrisChartColor = colorName => window.irisChartTokens?.color(colorName) || getIrisTokenColor('--oi-chart-color-' + colorName);
+if (typeof Chart !== 'undefined') window.irisChartTokens?.apply(Chart);
 
-    // Hide all panels
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    // Remove active state from all KPIs
-    document.querySelectorAll('.kpi[data-section]').forEach(k => k.classList.remove('kpi-active'));
+let activeKpiModalPanel = null;
+let activeKpiModalPlaceholder = null;
+let activeKpiModalTrigger = null;
+let activeKpiModalHeading = null;
+let activeKpiModalHeadingWasHidden = false;
+let activeKpiModalWasActive = false;
+let previousBodyOverflow = '';
 
-    // Show target panel
-    panel.classList.add('active');
-    const kpi = document.querySelector('.kpi[data-section="' + section + '"]');
-    if (kpi) kpi.classList.add('kpi-active');
-    if (scroll !== false) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+function initializeKpiDetailTriggers(root = document) {
+    root.querySelectorAll('.kpi[data-section]').forEach(kpi => {
+        if (!['BUTTON', 'A'].includes(kpi.tagName)) {
+            kpi.setAttribute('role', 'button');
+            kpi.setAttribute('tabindex', '0');
+        }
+        kpi.setAttribute('aria-haspopup', 'dialog');
+        kpi.setAttribute('aria-controls', 'kpiDetailModal');
+        if (!kpi.hasAttribute('aria-expanded')) kpi.setAttribute('aria-expanded', 'false');
+    });
+}
+
+initializeKpiDetailTriggers();
+
+function openKpiDetailModal(panel, trigger) {
+    const modal = document.getElementById('kpiDetailModal');
+    const body = document.getElementById('kpiDetailModalBody');
+    const title = document.getElementById('kpiDetailModalTitle');
+    if (!modal || !body || !title || !panel) return false;
+    if (activeKpiModalPanel === panel) return true;
+    if (activeKpiModalPanel) closeKpiDetailModal();
+
+    const panelHeading = panel.querySelector(':scope > h2, :scope > summary h2');
+    const titleClone = panelHeading?.cloneNode(true);
+    titleClone?.querySelectorAll('.sec-icon, .sec-tree-btn').forEach(element => element.remove());
+    title.textContent = titleClone?.textContent.trim() || trigger?.getAttribute('aria-label') || 'Details';
+    activeKpiModalPanel = panel;
+    activeKpiModalTrigger = trigger || document.activeElement;
+    activeKpiModalHeading = panelHeading;
+    activeKpiModalHeadingWasHidden = panelHeading?.hidden || false;
+    activeKpiModalWasActive = panel.classList.contains('active');
+    activeKpiModalPlaceholder = document.createComment('KPI detail modal return point');
+    panel.parentNode.insertBefore(activeKpiModalPlaceholder, panel);
+    if (panelHeading) panelHeading.hidden = true;
+    panel.classList.add('iris-kpi-modal-content');
+    panel.classList.remove('active');
+    body.replaceChildren(panel);
+
+    document.querySelectorAll('.kpi[data-section]').forEach(kpi => kpi.classList.remove('kpi-active'));
+    if (trigger) {
+        trigger.classList.add('kpi-active');
+        trigger.setAttribute('aria-expanded', 'true');
+        activeKpiModalTrigger = trigger;
+    }
+
+    previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    modal.hidden = false;
+    document.getElementById('kpiDetailModalClose')?.focus();
     return true;
 }
 
-document.querySelectorAll('.kpi[data-section]').forEach(kpi => {
-    kpi.addEventListener('click', () => {
-        openDashboardSection(kpi.getAttribute('data-section'), true);
+function closeKpiDetailModal() {
+    const modal = document.getElementById('kpiDetailModal');
+    if (!activeKpiModalPanel || !modal) return;
+
+    if (activeKpiModalPlaceholder?.parentNode) {
+        activeKpiModalPlaceholder.parentNode.insertBefore(activeKpiModalPanel, activeKpiModalPlaceholder);
+        activeKpiModalPlaceholder.remove();
+    }
+    activeKpiModalPanel.classList.remove('iris-kpi-modal-content');
+    if (activeKpiModalWasActive) activeKpiModalPanel.classList.add('active');
+    if (activeKpiModalHeading) activeKpiModalHeading.hidden = activeKpiModalHeadingWasHidden;
+    modal.hidden = true;
+    document.body.style.overflow = previousBodyOverflow;
+    document.querySelectorAll('.kpi[data-section]').forEach(kpi => {
+        kpi.classList.remove('kpi-active');
     });
+
+    const trigger = activeKpiModalTrigger;
+    trigger?.setAttribute('aria-expanded', 'false');
+    activeKpiModalPanel = null;
+    activeKpiModalPlaceholder = null;
+    activeKpiModalTrigger = null;
+    activeKpiModalHeading = null;
+    if (trigger instanceof HTMLElement) trigger.focus();
+}
+
+// KPI click -> show its existing server-rendered detail panel in the shared Iris modal.
+function openDashboardSection(section, scroll) {
+    const panel = document.getElementById('panel-' + section);
+    if (!panel) return false;
+    const trigger = document.querySelector('.kpi[data-section="' + section + '"]');
+    return openKpiDetailModal(panel, trigger);
+}
+
+const irisAccordionRuns = new WeakMap();
+
+function getIrisAccordionParts(accordion) {
+    const header = Array.from(accordion.children).find(child =>
+        child.matches('summary.iris-accordion-header, .iris-accordion-header'));
+    const content = Array.from(accordion.children).find(child =>
+        child.classList.contains('iris-accordion-content'));
+    return { header, content };
+}
+
+function initializeIrisAccordions(root = document) {
+    root.querySelectorAll('.iris-accordion').forEach(accordion => {
+        const { header, content } = getIrisAccordionParts(accordion);
+        if (!header || !content) return;
+        const expanded = accordion instanceof HTMLDetailsElement
+            ? accordion.open
+            : !accordion.classList.contains('collapsed');
+        header.setAttribute('aria-expanded', String(expanded));
+        const button = header.querySelector('.btn-collapse');
+        if (button) button.setAttribute('aria-expanded', String(expanded));
+        content.style.height = expanded ? 'auto' : '0px';
+        content.style.opacity = expanded ? '1' : '0';
+        content.inert = !expanded;
+    });
+}
+
+function toggleIrisAccordion(accordion, header) {
+    const { content } = getIrisAccordionParts(accordion);
+    if (!content) return;
+
+    const isDetails = accordion instanceof HTMLDetailsElement;
+    const expanded = isDetails ? accordion.open : !accordion.classList.contains('collapsed');
+    const nextExpanded = !expanded;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const runId = (irisAccordionRuns.get(accordion) || 0) + 1;
+    irisAccordionRuns.set(accordion, runId);
+
+    header.setAttribute('aria-expanded', String(nextExpanded));
+    const button = header.querySelector('.btn-collapse');
+    if (button) {
+        button.setAttribute('aria-expanded', String(nextExpanded));
+        button.title = nextExpanded ? 'Collapse' : 'Expand';
+        button.setAttribute('aria-label', button.title);
+    }
+
+    if (reducedMotion) {
+        if (isDetails) accordion.open = nextExpanded;
+        else accordion.classList.toggle('collapsed', !nextExpanded);
+        content.style.height = nextExpanded ? 'auto' : '0px';
+        content.style.opacity = nextExpanded ? '1' : '0';
+        content.inert = !nextExpanded;
+        return;
+    }
+
+    if (nextExpanded) {
+        if (isDetails) accordion.open = true;
+        else accordion.classList.remove('collapsed');
+        content.inert = false;
+        content.style.height = '0px';
+        content.style.opacity = '0';
+        void content.offsetHeight;
+        requestAnimationFrame(() => {
+            if (irisAccordionRuns.get(accordion) !== runId) return;
+            content.style.height = content.scrollHeight + 'px';
+            content.style.opacity = '1';
+        });
+    } else {
+        content.style.height = content.getBoundingClientRect().height + 'px';
+        content.style.opacity = '1';
+        void content.offsetHeight;
+        content.inert = true;
+        requestAnimationFrame(() => {
+            if (irisAccordionRuns.get(accordion) !== runId) return;
+            content.style.height = '0px';
+            content.style.opacity = '0';
+        });
+    }
+
+    let finished = false;
+    const finish = event => {
+        if (finished || (event && (event.target !== content || event.propertyName !== 'height'))) return;
+        finished = true;
+        content.removeEventListener('transitionend', finish);
+        if (irisAccordionRuns.get(accordion) !== runId) return;
+        if (!nextExpanded) {
+            if (isDetails) accordion.open = false;
+            else accordion.classList.add('collapsed');
+        }
+        content.style.height = nextExpanded ? 'auto' : '0px';
+        content.style.opacity = nextExpanded ? '1' : '0';
+    };
+    content.addEventListener('transitionend', finish);
+    setTimeout(finish, 260);
+}
+
+initializeIrisAccordions();
+
+document.addEventListener('click', event => {
+    const header = event.target.closest('.iris-accordion-header');
+    if (!header) return;
+    const accordion = header.closest('.iris-accordion');
+    if (!accordion) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    toggleIrisAccordion(accordion, header);
+}, true);
+
+document.addEventListener('click', event => {
+    const accordionToggle = event.target.closest('.ad-accordion-toggle');
+    if (accordionToggle) {
+        const expanded = accordionToggle.getAttribute('aria-expanded') === 'true';
+        const content = document.getElementById(accordionToggle.getAttribute('aria-controls'));
+        if (content) {
+            content.hidden = expanded;
+            accordionToggle.setAttribute('aria-expanded', String(!expanded));
+            const action = expanded ? 'Expand' : 'Collapse';
+            accordionToggle.setAttribute('aria-label', action + ' Governance and Risk');
+            accordionToggle.title = action + ' Governance and Risk';
+        }
+        return;
+    }
+
+    const kpi = event.target.closest('.kpi[data-section]');
+    if (kpi) openDashboardSection(kpi.getAttribute('data-section'), true);
+});
+
+document.addEventListener('keydown', event => {
+    const kpi = event.target.closest('.kpi[data-section]');
+    if (kpi && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        openDashboardSection(kpi.getAttribute('data-section'), true);
+        return;
+    }
+
+    if (!activeKpiModalPanel) return;
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        closeKpiDetailModal();
+        return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const modal = document.querySelector('#kpiDetailModal .iris-kpi-modal');
+    const focusable = modal?.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+    if (!focusable?.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+    }
+});
+
+document.getElementById('kpiDetailModal')?.addEventListener('click', event => {
+    if (event.target.id === 'kpiDetailModal') closeKpiDetailModal();
+});
+document.getElementById('kpiDetailModalClose')?.addEventListener('click', closeKpiDetailModal);
+document.getElementById('kpiDetailModalExport')?.addEventListener('click', () => {
+    closeKpiDetailModal();
+    document.getElementById('btnExport')?.click();
 });
 
 // On load, restore the panel referenced by the URL hash (e.g. #panel-globalgroups),
@@ -281,18 +520,17 @@ document.addEventListener('click', (e) => {
 initTableSort();
 
 // Category charts (rendered via Chart.js, self-hosted)
-// Maps the dashboard's CSS color names to hex values used for chart segments.
 const CHART_COLORS = {
-    blue: '#2563eb',
-    green: '#16a34a',
-    purple: '#7c3aed',
-    teal: '#0d9488',
-    amber: '#d97706',
-    pink: '#db2777',
-    slate: '#475569',
-    red: '#dc2626',
-    orange: '#ea580c',
-    indigo: '#4f46e5'
+    blue: getIrisChartColor('blue'),
+    green: getIrisChartColor('green'),
+    purple: getIrisChartColor('purple'),
+    teal: getIrisChartColor('teal'),
+    amber: getIrisChartColor('amber'),
+    pink: getIrisChartColor('pink'),
+    slate: getIrisChartColor('slate'),
+    red: getIrisChartColor('red'),
+    orange: getIrisChartColor('orange'),
+    indigo: getIrisChartColor('indigo')
 };
 
 // External HTML tooltip handler for charts. Renders the tooltip as a DOM element
@@ -353,8 +591,8 @@ const sliceLabelsPlugin = {
             if (pct < 5) return; // skip labels on very thin slices to avoid clutter
 
             const pos = arc.tooltipPosition();
-            ctx.fillStyle = '#ffffff';
-            ctx.strokeStyle = 'rgba(0,0,0,.35)';
+            ctx.fillStyle = getIrisTokenColor('--oi-background-color-primary');
+            ctx.strokeStyle = getIrisTokenColor('--oi-border-color-strong');
             ctx.lineWidth = 3;
             const text = pct + '%';
             ctx.strokeText(text, pos.x, pos.y);
@@ -381,10 +619,10 @@ const donutCenterPlugin = {
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = getComputedStyle(chart.canvas).getPropertyValue('--oi-content-color-primary').trim() || '#0f172b';
+        ctx.fillStyle = getIrisTokenColor('--oi-content-color-primary');
         ctx.font = '600 18px "IBM Plex Mono", ui-monospace, monospace';
         ctx.fillText(total.toLocaleString(), x, y - 6);
-        ctx.fillStyle = getComputedStyle(chart.canvas).getPropertyValue('--oi-content-color-tertiary').trim() || '#62748e';
+        ctx.fillStyle = getIrisTokenColor('--oi-content-color-tertiary');
         ctx.font = '10px "Inter", system-ui, sans-serif';
         ctx.fillText('Total', x, y + 12);
         ctx.restore();
@@ -402,7 +640,7 @@ const bar3dPlugin = {
         const depth = 12;
         ctx.save();
         meta.data.forEach((bar, i) => {
-            const color = chart.data.datasets[0].backgroundColor[i] || '#94a3b8';
+            const color = chart.data.datasets[0].backgroundColor[i] || getIrisTokenColor('--oi-content-color-tertiary');
             const { x, y, base, width } = bar.getProps(['x', 'y', 'base', 'width'], true);
             const half = width / 2;
             const left = x - half;
@@ -465,8 +703,8 @@ function buildChart(canvas, mode) {
 
     const originalType = canvas.getAttribute('data-chart-type') || 'doughnut';
     const type = mode === 'bar3d' ? 'bar' : originalType;
-    const backgroundColor = colorNames.map(c => CHART_COLORS[c] || '#94a3b8');
-    const surfaceColor = getComputedStyle(canvas).getPropertyValue('--oi-background-color-primary').trim() || '#ffffff';
+    const backgroundColor = colorNames.map(c => CHART_COLORS[c] || getIrisTokenColor('--oi-content-color-tertiary'));
+    const surfaceColor = getIrisTokenColor('--oi-background-color-primary');
     const isCircular = type === 'doughnut' || type === 'pie';
     const isBar3d = mode === 'bar3d';
     const offset = parseInt(canvas.getAttribute('data-chart-offset') || '0', 10) || 0;
@@ -502,6 +740,10 @@ function buildChart(canvas, mode) {
             : (isBar3d ? [bar3dPlugin] : []),
         options: {
             responsive: true,
+            animation: {
+                duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 760,
+                easing: 'easeOutQuart'
+            },
             // Pies keep a true 1:1 ratio; doughnuts and 3-D bars fill the fixed-height container.
             maintainAspectRatio: type === 'pie',
             cutout: type === 'doughnut' ? '70%' : undefined,
@@ -569,6 +811,68 @@ function initCategoryCharts() {
         if (canvas.dataset.chartInitialized === 'true') return;
         buildChart(canvas, 'original');
         canvas.dataset.chartInitialized = 'true';
+    });
+}
+
+let dashboardVisualAnimationFrame = 0;
+
+function animateDashboardVisuals(root = document) {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const countElements = Array.from(root.querySelectorAll(
+        '.ad-summary-value, .ad-risk-value, .chart-ring-total, .ad-source-legend strong, .iris-kpi-row .val'
+    ));
+    const counts = countElements.map(element => {
+        const text = element.textContent.trim();
+        if (!/^\d[\d.,\s\u00a0\u202f]*$/.test(text)) return null;
+        const value = Number(text.replace(/[.,\s\u00a0\u202f]/g, ''));
+        if (!Number.isFinite(value)) return null;
+        return { element, value: Math.round(value) };
+    }).filter(Boolean);
+
+    const formatter = new Intl.NumberFormat(document.documentElement.lang || undefined, { maximumFractionDigits: 0 });
+    if (dashboardVisualAnimationFrame) cancelAnimationFrame(dashboardVisualAnimationFrame);
+    if (reducedMotion) {
+        counts.forEach(({ element, value }) => { element.textContent = formatter.format(value); });
+        return;
+    }
+
+    counts.forEach(({ element }) => { element.textContent = formatter.format(0); });
+    const startTime = performance.now();
+    const duration = 760;
+    function countFrame(now) {
+        const progress = Math.min(1, (now - startTime) / duration);
+        const eased = 1 - Math.pow(1 - progress, 4);
+        counts.forEach(({ element, value }) => {
+            element.textContent = formatter.format(Math.round(value * eased));
+        });
+        if (progress < 1) dashboardVisualAnimationFrame = requestAnimationFrame(countFrame);
+        else dashboardVisualAnimationFrame = 0;
+    }
+    dashboardVisualAnimationFrame = requestAnimationFrame(countFrame);
+
+    root.querySelectorAll('.ad-capacity-track > span').forEach(fill => {
+        fill.style.transition = 'none';
+        fill.style.transformOrigin = 'left center';
+        fill.style.transform = 'scaleX(0)';
+        void fill.offsetWidth;
+        requestAnimationFrame(() => {
+            fill.style.transition = '';
+            fill.style.transform = 'scaleX(1)';
+        });
+    });
+
+    root.querySelectorAll('.ad-source-card .chart-ring').forEach(ring => {
+        const targets = Array.from(ring.querySelectorAll('circle')).map(circle => {
+            const target = circle.getAttribute('stroke-dasharray') || '';
+            const circumference = Number(target.trim().split(/[\s,]+/)[1]) || 0;
+            return { circle, target, collapsed: '0 ' + circumference };
+        });
+        targets.forEach(({ circle, collapsed }) => { circle.style.strokeDasharray = collapsed; });
+        void ring.getBoundingClientRect();
+        requestAnimationFrame(() => {
+            ring.classList.add('is-animated');
+            targets.forEach(({ circle, target }) => { circle.style.strokeDasharray = target; });
+        });
     });
 }
 
@@ -1212,7 +1516,7 @@ initCategoryCharts();
             if (targets.indexOf(p.targetName) === -1) targets.push(p.targetName);
             if (tests.indexOf(p.testType) === -1) tests.push(p.testType);
         });
-        const colors = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0d9488', '#db2777', '#475569'];
+        const colors = ['blue', 'green', 'amber', 'red', 'purple', 'teal', 'pink', 'slate'].map(getIrisChartColor);
         // Group by TEST TYPE on the x-axis with one column series per target/server, so
         // latency is compared like-for-like across servers (a Ping is only comparable to
         // another Ping). A logarithmic y-axis keeps fast probes readable next to slow ones.
@@ -1231,7 +1535,7 @@ initCategoryCharts();
                 data: actuals.map(v => v === null ? null : Math.max(v, 0.5)),
                 actualLatency: actuals,
                 backgroundColor: colors[idx % colors.length],
-                borderColor: '#0f172a',
+                borderColor: getIrisTokenColor('--oi-content-color-primary'),
                 borderWidth: 1,
                 borderSkipped: false
             };

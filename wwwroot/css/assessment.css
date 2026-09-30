@@ -1,0 +1,290 @@
+.assessment-page {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-top: 0;
+}
+
+.assessment-page > .sticky-head {
+    flex: 0 0 auto;
+}
+
+.assessment-content {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 24px 40px 0;
+}
+
+.assessment-fixed {
+    flex: 0 0 auto;
+}
+
+.assessment-scroll {
+    min-height: 0;
+    flex: 1 1 auto;
+    padding: 0 0 24px;
+}
+
+.assessment-page .asmt-page-title {
+    margin: 0 0 24px;
+}
+
+.assessment-page .asmt-title-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.assessment-page .asmt-title-info {
+    display: inline-flex;
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px;
+    cursor: help;
+}
+
+.assessment-page .asmt-page-title h1 {
+    margin: 0;
+    color: var(--oi-content-color-primary);
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 40px;
+}
+
+.assessment-page .snap-panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.assessment-page .asmt-card {
+    min-width: 0;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--oi-border-color-muted);
+    border-radius: 8px;
+    box-shadow: none;
+}
+
+.assessment-page .snap-panels .asmt-card {
+    margin-bottom: 0;
+}
+
+.assessment-page .snap-panels .asmt-card > h2 {
+    margin: 0;
+    color: var(--oi-content-color-primary);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+}
+
+.assessment-page .asmt-run-form,
+.assessment-page .snap-compare-form {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 16px;
+}
+
+.assessment-page .asmt-run-field,
+.assessment-page .snap-compare-form label {
+    min-width: 0;
+    gap: 6px;
+    color: var(--oi-content-color-primary);
+    font-size: 14px;
+}
+
+.assessment-page .asmt-run-field > span,
+.assessment-page .snap-compare-form label > span {
+    color: var(--oi-content-color-primary);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+}
+
+.assessment-page .asmt-run-form > button,
+.assessment-page .snap-compare-form > button {
+    grid-column: 1 / -1;
+    justify-self: start;
+    min-height: 32px;
+    padding: 4px 16px;
+    border-radius: 4px;
+    background: var(--oi-button-background-primary);
+    color: var(--oi-content-color-constant);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.assessment-page .asmt-run-form > button:hover:not(:disabled),
+.assessment-page .snap-compare-form > button:hover:not(:disabled) {
+    background: var(--oi-button-background-primary-hover);
+}
+
+.assessment-page .asmt-trend-wrap {
+    height: 220px;
+}
+
+.assessment-page .asmt-card > h2 {
+    color: var(--oi-content-color-primary);
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 32px;
+}
+
+.assessment-page .asmt-card > .snap-hint {
+    color: var(--oi-content-color-tertiary);
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.assessment-page .asmt-results-accordion {
+    overflow: hidden;
+    padding: 0;
+}
+
+.assessment-page .asmt-results-accordion > summary {
+    display: flex;
+    min-height: 40px;
+    align-items: center;
+    gap: var(--oi-spacing-xs);
+    padding: var(--oi-spacing-xs);
+    border-bottom: 1px solid var(--oi-border-color-muted);
+    background: var(--oi-background-color-primary);
+    color: var(--oi-content-color-primary);
+    cursor: pointer;
+    list-style: none;
+}
+
+.assessment-page .asmt-results-accordion > summary::-webkit-details-marker {
+    display: none;
+}
+
+.assessment-page .asmt-category-caret {
+    display: block;
+    flex: 0 0 16px;
+    width: 16px;
+    height: 24px;
+    transition: transform var(--oi-motion-duration-short) var(--oi-motion-ease-default);
+}
+
+.assessment-page .asmt-results-accordion:not([open]) .asmt-category-caret {
+    transform: rotate(-90deg);
+}
+
+.assessment-page .asmt-results-accordion .asmt-cat-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+}
+
+.assessment-page .asmt-category-name {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.assessment-page .asmt-cat-counts {
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.assessment-page .asmt-tag {
+    padding: 2px 8px;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    background: var(--oi-background-color-primary);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    white-space: nowrap;
+}
+
+.assessment-page .asmt-results-body {
+    border-top: 1px solid var(--oi-border-color-muted);
+    background: var(--oi-background-color-primary);
+}
+
+.assessment-page .asmt-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.assessment-page .asmt-table {
+    min-width: 820px;
+    font-size: 14px;
+}
+
+.assessment-page .asmt-table th {
+    height: 36px;
+    padding: 8px 12px;
+    background: var(--oi-background-color-primary);
+    color: var(--oi-content-color-primary);
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: none;
+}
+
+.assessment-page .asmt-table td {
+    padding: 10px 12px;
+    color: var(--oi-content-color-primary);
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.assessment-page .asmt-table .asmt-reco {
+    color: var(--oi-content-color-secondary);
+}
+
+@media (max-width: 900px) {
+    .assessment-content {
+        padding: 24px 24px 0;
+    }
+
+    .assessment-page .snap-panels {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .assessment-content {
+        padding: 24px 16px 0;
+    }
+
+    .assessment-page .asmt-page-title h1 {
+        font-size: 26px;
+        line-height: 32px;
+    }
+}
+
+@media (max-width: 600px) {
+    .assessment-page .asmt-run-form,
+    .assessment-page .snap-compare-form {
+        grid-template-columns: 1fr;
+    }
+
+    .assessment-page .asmt-run-form > button,
+    .assessment-page .snap-compare-form > button {
+        grid-column: 1;
+    }
+
+    .assessment-page .asmt-results-accordion > summary {
+        flex-wrap: wrap;
+        padding: 12px;
+    }
+
+    .assessment-page .asmt-results-accordion .asmt-cat-title {
+        font-size: 20px;
+        line-height: 28px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .assessment-page .asmt-category-caret {
+        transition: none;
+    }
+}

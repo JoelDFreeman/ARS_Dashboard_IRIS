@@ -1,3 +1,5 @@
+@import url("iris-tokens.css?v=2");
+
 html {
   font-size: 14px;
 }
@@ -9,7 +11,7 @@ html {
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+  box-shadow: 0 0 0 0.1rem var(--oi-background-color-primary), 0 0 0 0.25rem var(--oi-border-color-focus);
 }
 
 html {
@@ -47,9 +49,9 @@ body {
   max-width: 360px;
   padding: 0.65rem 0.9rem;
   border-radius: 6px;
-  color: #fff;
-  background: #323a45;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  color: var(--oi-content-color-constant);
+  background: var(--oi-background-color-tertiary);
+  box-shadow: var(--oi-shadow-low);
   font-size: 0.9rem;
   opacity: 0;
   transform: translateY(12px);
@@ -62,9 +64,9 @@ body {
   transform: translateY(0);
 }
 
-.app-toast.success { background: #1f7a44; }
-.app-toast.error { background: #b02a37; }
-.app-toast.info { background: #2a5db0; }
+.app-toast.success { background: var(--oi-background-color-success); color: var(--oi-content-color-success); }
+.app-toast.error { background: var(--oi-background-color-error); color: var(--oi-content-color-error); }
+.app-toast.info { background: var(--oi-background-color-info); color: var(--oi-content-color-info); }
 
 /* --- Lazy membership loading state --- */
 .membership-loading {
@@ -93,7 +95,7 @@ body {
   position: relative;
   display: inline-flex;
   align-items: center;
-  color: #0d6efd;
+  color: var(--oi-content-color-brand);
   margin-left: 0.75rem;
 }
 
@@ -109,8 +111,8 @@ body {
   height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: #dc3545;
-  color: #fff;
+  background: var(--oi-base-color-error);
+  color: var(--oi-content-color-constant);
   font-size: 10px;
   font-weight: 600;
   line-height: 16px;

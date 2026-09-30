@@ -17,21 +17,15 @@ public static class DemoDataService
                 TotalCount = 1,
                 Items = [new DomainInfo { Name = "DEMO", DnsName = "demo.local" }]
             },
-            ADUserAccounts = new ADUserAccountsSummary { Items = CreateRawItems(42, "user") },
-            ADGroups = new ADGroupsSummary { Items = CreateRawItems(18, "group") },
+            ADUserAccounts = new ADUserAccountsSummary(),
+            ADGroups = new ADGroupsSummary(),
             Computers = new ComputersSummary { Items = CreateRawItems(12, "computer") },
-            EntraTotals = new EntraTotalsSummary
-            {
-                Tenants = ["demo.onmicrosoft.com"],
-                MembershipLoaded = true,
-                ByObjectType = EntraObjectTypeInfo.All
-                    .Select((type, index) => new EntraObjectTypeCount { ObjectType = type, TotalCount = 8 + index * 3 })
-                    .ToList()
-            },
+            EntraTotals = new EntraTotalsSummary(),
             ExchangeVisible = true,
             LicensingVisible = true
         };
 
+        TemporaryMetadata.PopulateDashboardSummary(summary);
         summary.ADUserAccounts.TotalCount = summary.ADUserAccounts.Items.Count;
         summary.ADGroups.TotalCount = summary.ADGroups.Items.Count;
         summary.Computers.TotalCount = summary.Computers.Items.Count;
