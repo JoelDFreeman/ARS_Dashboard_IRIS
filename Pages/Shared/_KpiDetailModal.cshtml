@@ -1,0 +1,21 @@
+@model ActiveRolesDashboard.Pages.DashboardPageModel
+<div class="iris-kpi-modal-backdrop" id="kpiDetailModal" hidden>
+    <section class="iris-kpi-modal" role="dialog" aria-modal="true" aria-labelledby="kpiDetailModalTitle" tabindex="-1">
+        <header class="iris-kpi-modal-header">
+            <h2 id="kpiDetailModalTitle">Details</h2>
+            <div class="iris-kpi-modal-actions">
+                @if (Model.CanExportDashboardData)
+                {
+                <button type="button" class="iris-kpi-modal-export" id="kpiDetailModalExport">
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 16v4h14v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span>Export</span>
+                </button>
+                }
+                <button type="button" class="iris-kpi-modal-close" id="kpiDetailModalClose" aria-label="Close details" title="Close details">
+                    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                </button>
+            </div>
+        </header>
+        <div class="iris-kpi-modal-body" id="kpiDetailModalBody"></div>
+    </section>
+</div>

@@ -72,21 +72,26 @@
 
     @if (Model.KpiSettings.LicensingEnabled)
     {
-    <div class="kpi-category">
-        <h2 class="kpi-category-title"><span>@CategoryInfo.Licensing.DisplayName</span><button type="button" class="btn-collapse" onclick="toggleCategory(this)" title="Collapse">&#9650;</button></h2>
-        <div class="kpi-grid">
+        <details class="kpi-category iris-accordion" open>
+            <summary class="iris-accordion-header kpi-category-title" aria-expanded="true"><span class="iris-accordion-caret" aria-hidden="true"></span><span>@CategoryInfo.Licensing.DisplayName</span></summary>
+                <div class="iris-accordion-content">
+                    <div class="iris-accordion-surface">
+                <div class="kpi-grid">
             @foreach (var kpi in KpiInfo.ForCategory(CategoryInfo.Licensing))
             {
                 if (!Model.KpiSettings.IsKpiEnabled(CategoryInfo.Licensing.Key, kpi.Key)) { continue; }
                 var result = Model.Summary.GetKpiResult(kpi.Key);
-            <div class="kpi @kpi.CssColor" data-section="@kpi.SectionId">
+                var hasRisk = kpi.IsRiskKpi && (result.Error != null || result.Count > 0);
+            <div class="kpi @kpi.CssColor iris-kpi-row @(kpi.IsRiskKpi ? "is-risk" : "") @(hasRisk ? "has-risk" : "")" data-section="@kpi.SectionId">
                 <div class="lbl">@kpi.Label</div>
                 <div class="val">@(result.Error ?? result.Count.ToString())</div>
             </div>
             }
         </div>
         @await Html.PartialAsync("_CategoryCharts", (CategoryInfo.Licensing, Model.Summary, Model.KpiSettings))
-    </div>
+                    </div>
+                </div>
+    </details>
     }
 
     <hr class="kpi-separator" />
@@ -121,7 +126,7 @@
             <div class="panel panel-static" id="panel-licensingthresholds">
             <h2>
                 <span class="sec-icon">L</span> @Localizer["H_LicensingThresholds"]
-                <span style="margin-left:8px; padding:2px 8px; border-radius:9999px; background:#fef2f2; color:#991b1b; border:1px solid #fecaca; font-size:.72rem; font-weight:600; @(licOverThreshold ? "" : "display:none;")">@Localizer["Badge_OverEntitlement"]</span>
+                <span style="margin-left:8px; padding:2px 8px; border-radius:9999px; background:var(--oi-background-color-error); color:var(--oi-content-color-error); border:1px solid var(--oi-border-color-badge-error); font-size:.72rem; font-weight:600; @(licOverThreshold ? "" : "display:none;")">@Localizer["Badge_OverEntitlement"]</span>
             </h2>
             <div class="panel-content">
                 <div style="position:relative; height:350px;">
@@ -162,7 +167,8 @@
         });
     });
 
-    var colors = ['#2563eb','#16a34a','#d97706','#dc2626','#7c3aed','#0d9488','#db2777','#475569','#ea580c','#4f46e5'];
+    var colors = ['blue', 'green', 'amber', 'red', 'purple', 'teal', 'pink', 'slate', 'orange', 'indigo']
+        .map(window.irisChartTokens.color);
     var datasets = itemNames.map(function(name, idx) {
         var data = dataPoints.map(function(dp) {
             var found = dp.items.find(function(item) { return (item.category + ': ' + item.displayName) === name; });
@@ -194,19 +200,19 @@
     if (!canvas || typeof Chart === 'undefined') { return; }
     var cats = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(licCategories));
     var labels = cats.map(function(c) { return c.label; });
-    var breachColor = '#dc2626';
-    var entitlementColor = '#111827';
+    var breachColor = window.irisChartTokens.token('--oi-content-color-error');
+    var entitlementColor = window.irisChartTokens.token('--oi-content-color-primary');
 
     // Per-category colours matching the Managed Objects chart palette;
     // Grand Total gets its own distinct colour.
     var categoryColors = {
-        'Domain': '#2563eb',
-        'Partition': '#16a34a',
-        'Azure': '#d97706',
-        'SAAS': '#7c3aed',
-        'Total': '#475569'
+        'Domain': window.irisChartTokens.color('blue'),
+        'Partition': window.irisChartTokens.color('green'),
+        'Azure': window.irisChartTokens.color('amber'),
+        'SAAS': window.irisChartTokens.color('purple'),
+        'Total': window.irisChartTokens.color('slate')
     };
-    function colorFor(key) { return categoryColors[key] || '#2563eb'; }
+    function colorFor(key) { return categoryColors[key] || window.irisChartTokens.color('blue'); }
 
     var barData = cats.map(function(c) { return c.total; });
     var barColors = cats.map(function(c) {

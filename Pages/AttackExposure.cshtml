@@ -51,24 +51,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Active Roles Dashboard - ATT&CK Exposure</title>
     <link rel="stylesheet" href="css/dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="css/attack-exposure.css" asp-append-version="true" />
 </head>
 <body>
-<div class="page">
+<div class="page iris-nav-page">
     <div class="sticky-head">
     @{
         ViewData["HeaderKey"] = "AttackExposure";
         ViewData["RefreshUrl"] = "/AttackExposure"; ViewData["ShowHome"] = true;
+        ViewData["UseFigmaNavigation"] = true;
+        ViewData["ShowSidebarDashboardActions"] = false;
+        ViewData["SidebarTitle"] = "Active Roles";
+        ViewData["SidebarDashboardLabel"] = "Dashboard";
+        ViewData["ShowDashboardNavigation"] = false;
     }
     <partial name="_DashboardHeader" />
-
-    <a href="@(pathBase)/?cached=true" class="back-link">&larr; @Localizer["BackToDashboard"]</a>
     </div>
+
+    <div class="exp-page-content">
+    <section class="exp-page-title">
+        <div class="exp-title-group">
+            <h1>ATT&amp;CK Exposure</h1>
+            <span class="exp-title-info iris-icon-info" title="See how your environment maps to MITRE ATT&amp;CK techniques in a clean, full-width unified view." aria-label="See how your environment maps to MITRE ATT&amp;CK techniques in a clean, full-width unified view."></span>
+        </div>
+    </section>
 
     @if (Model.EntraMembershipDataPending)
     {
         <div class="membership-warning" role="status">@Model.EntraMembershipPendingWarning</div>
     }
 
+    <details class="iris-accordion exp-history-accordion">
+        <summary class="iris-accordion-header" aria-expanded="false">
+            <span class="iris-accordion-caret" aria-hidden="true"></span>
+            <span>Exposure summary, comparison and trend</span>
+        </summary>
+        <div class="iris-accordion-content exp-history-content">
     <div class="atk-summary">
         <div class="atk-stat exp-high">
             <div class="atk-stat-val">@Model.Exposure.HighCount</div>
@@ -217,40 +235,62 @@
             }
         }
     </section>
+        </div>
+    </details>
 
-    <div class="atk-matrix">
+    <div class="atk-matrix exp-sequential">
         @foreach (var tactic in Model.Exposure.Tactics)
         {
-            <div class="atk-tactic">
-                <div class="atk-tactic-head @LevelClass(tactic.MaxLevel)">
-                    <span class="atk-tactic-name">@MitreTacticInfo.DisplayName(tactic.Tactic)</span>
-                    <span class="atk-tactic-id">@MitreTacticInfo.Id(tactic.Tactic)</span>
-                </div>
-                <div class="atk-tactic-body">
+            var tacticId = "exp-tactic-" + MitreTacticInfo.Id(tactic.Tactic);
+            <details class="iris-accordion exp-tactic" open>
+                <summary class="iris-accordion-header exp-tactic-header" aria-controls="@tacticId" aria-expanded="true">
+                    <span class="exp-accordion-label">
+                        <span class="iris-accordion-caret exp-tactic-caret" aria-hidden="true"></span>
+                        <span>@MitreTacticInfo.DisplayName(tactic.Tactic) (Tactic)</span>
+                    </span>
+                    <span class="exp-tactic-meta">
+                        <span class="exp-level-badge @LevelClass(tactic.MaxLevel)">@LevelLabel(tactic.MaxLevel)</span>
+                        <span class="atk-tactic-id">@MitreTacticInfo.Id(tactic.Tactic)</span>
+                    </span>
+                </summary>
+                <div class="iris-accordion-content exp-tactic-body" id="@tacticId">
                     @foreach (var tech in tactic.Techniques)
                     {
-                        <div class="atk-tech @LevelClass(tech.Level)">
-                            <div class="atk-tech-head">
-                                <span class="atk-tech-name">@tech.Technique.Name</span>
-                                <span class="atk-tech-badge @LevelClass(tech.Level)">@LevelLabel(tech.Level)</span>
-                            </div>
-                            <div class="atk-tech-id">@tech.Technique.Id</div>
-                            <p class="atk-tech-desc">@tech.Technique.Description</p>
-                            <div class="atk-contribs">
+                        var techniqueId = "exp-tech-" + tech.Technique.Id.Replace('.', '-');
+                        <details class="iris-accordion exp-technique" open>
+                            <summary class="iris-accordion-header exp-technique-header" aria-controls="@techniqueId" aria-expanded="true">
+                                <span class="exp-accordion-label">
+                                    <span class="iris-accordion-caret exp-technique-caret" aria-hidden="true"></span>
+                                    <span>@tech.Technique.Name</span>
+                                </span>
+                                <span class="exp-level-badge @LevelClass(tech.Level)">@LevelLabel(tech.Level)</span>
+                            </summary>
+                            <div class="iris-accordion-content exp-technique-content" id="@techniqueId">
+                                <p class="exp-technique-description">@tech.Technique.Description</p>
+                                @if (tech.Contributions.Count > 0)
+                                {
+                                <div class="exp-metrics">
                                 @foreach (var c in tech.Contributions)
                                 {
-                                    <div class="atk-contrib @LevelClass(c.Level)">
-                                        <span class="atk-contrib-name">@c.DisplayName</span>
-                                        <span class="atk-contrib-count">@(c.HasError ? Localizer["NotAvailable"].Value : c.Count.ToString())</span>
+                                    <div class="exp-metric" title="@c.Rationale">
+                                        <span class="exp-metric-dot @LevelClass(c.Level)" aria-hidden="true"></span>
+                                        <span class="exp-metric-label">@c.DisplayName:</span>
+                                        <strong>@(c.HasError ? Localizer["NotAvailable"].Value : c.Count.ToString("N0", System.Globalization.CultureInfo.CurrentCulture))</strong>
                                     </div>
                                 }
+                                </div>
+                                }
+                                <div class="exp-mitigation">
+                                    <strong>@Localizer["Mitigation"]:</strong>
+                                    <span>@tech.Technique.Mitigation</span>
+                                </div>
                             </div>
-                            <p class="atk-tech-mit"><strong>@Localizer["Mitigation"]:</strong> @tech.Technique.Mitigation</p>
-                        </div>
+                        </details>
                     }
                 </div>
-            </div>
+            </details>
         }
+    </div>
     </div>
 
     <footer class="footer">@Localizer["Footer", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")]</footer>

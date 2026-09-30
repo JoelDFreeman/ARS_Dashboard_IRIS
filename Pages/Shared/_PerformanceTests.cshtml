@@ -32,11 +32,12 @@
     var testTypes = allTestTypes.Where(t => applicable.Contains(t.Value)).ToList();
 }
 
-<details class="panel panel-static panel-collapsible" id="panel-performancetests" data-perf-dashboard="@perfDashboard"
+<details class="iris-accordion kpi-category" id="panel-performancetests" data-perf-dashboard="@perfDashboard"
      data-perf-run="@Localizer["PerfTests_Run"]" data-perf-running="@Localizer["PerfTests_Running"]"
      data-perf-chart-latency="@Localizer["Col_Latency"]">
-    <summary><h2><span class="sec-icon">P</span> @Localizer["H_PerformanceTests"]<span class="panel-caret" aria-hidden="true">&#9662;</span></h2></summary>
-    <div class="panel-content">
+    <summary class="iris-accordion-header kpi-category-title" aria-expanded="false"><span class="iris-accordion-caret" aria-hidden="true"></span><span>@Localizer["H_PerformanceTests"]</span></summary>
+    <div class="iris-accordion-content">
+    <div class="iris-accordion-surface">
         <p class="muted">@Localizer["PerfTests_Intro"]</p>
 
         <div class="perf-controls">
@@ -103,5 +104,6 @@
                 <canvas id="perf-chart"></canvas>
             </div>
         </div>
+    </div>
     </div>
 </details>

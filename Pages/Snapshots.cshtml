@@ -22,16 +22,27 @@
         <p id="loadingOverlayText">@Localizer["CapturingSnapshot"]</p>
     </div>
 </div>
-<div class="page">
+<div class="page iris-nav-page snapshots-page">
     <div class="sticky-head">
     @{
         ViewData["HeaderKey"] = "Snapshots";
         ViewData["RefreshUrl"] = "/Snapshots"; ViewData["ShowHome"] = true;
+        ViewData["UseFigmaNavigation"] = true;
+        ViewData["ShowSidebarDashboardActions"] = false;
+        ViewData["SidebarTitle"] = "Active Roles";
+        ViewData["SidebarDashboardLabel"] = "Dashboard";
+        ViewData["ShowDashboardNavigation"] = false;
     }
     <partial name="_DashboardHeader" />
-
-    <a href="@(pathBase)/?cached=true" class="back-link">&larr; @Localizer["BackToDashboard"]</a>
     </div>
+
+    <main class="snapshots-page-content">
+    <section class="snapshots-page-title">
+        <div class="snapshots-title-group">
+            <h1>@Localizer["Title_Snapshots"]</h1>
+            <span class="snapshots-title-info iris-icon-info" title="@Localizer["Sub_Snapshots"]" aria-label="@Localizer["Sub_Snapshots"]"></span>
+        </div>
+    </section>
 
     @if (!string.IsNullOrEmpty(Model.StatusMessage))
     {
@@ -235,8 +246,10 @@
             </script>
         </section>
     }
+    </main>
 </div>
 <script src="js/chart.umd.min.js" asp-append-version="true"></script>
+<script src="js/iris-chart-theme.js" asp-append-version="true"></script>
 <script>
     var snapI18n = {
         capturing: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Localizer["CapturingSnapshot"].Value)),
@@ -304,10 +317,8 @@
                 var kpiSummary = document.getElementById('trendKpiSummary');
                 var chart = null;
 
-                var palette = [
-                    '#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed',
-                    '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4b5563'
-                ];
+                var palette = ['blue', 'red', 'green', 'amber', 'purple', 'teal', 'pink', 'slate', 'orange', 'indigo']
+                    .map(window.irisChartTokens.color);
                 function hexToRgba(hex, alpha) {
                     var n = parseInt(hex.slice(1), 16);
                     return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + alpha + ')';
@@ -378,7 +389,7 @@
                     var single = kpis.length === 1;
                     var datasets = kpis.map(function (kpi, i) {
                         var color = single
-                            ? (kpi.isRiskKpi ? '#dc2626' : '#2563eb')
+                            ? (kpi.isRiskKpi ? window.irisChartTokens.token('--oi-content-color-error') : window.irisChartTokens.color('blue'))
                             : palette[i % palette.length];
                         return {
                             label: kpi.displayName,

@@ -6,7 +6,7 @@
     // The Overview category renders as a static ring + legend (per the Figma KPI Dashboard
     // design) instead of an interactive Chart.js canvas, so it never needs the donut/column
     // toggle toolbar.
-    var isOverview = Model.Category.Key == "Overview";
+    var isOverview = Model.Category.Key is "Overview" or "ADOverview";
     var showToggle = charts.Any(c => !c.DisableTypeToggle) && !isOverview;
     // Matches the exact Figma ring colours (blue-400 / green-300) for the two-source AD/Entra
     // split used by every Overview chart; any additional source falls back to the shared
@@ -104,8 +104,9 @@
                     const double circumference = 2 * Math.PI * radius;
                     var cursor = 0.0;
                     <div class="chart-ring-row">
-                        <svg class="chart-ring" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="@chart.Title">
-                            <g transform="rotate(-90 60 60)">
+                        <div class="chart-ring-wrap">
+                            <svg class="chart-ring" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="@chart.Title">
+                                <g transform="rotate(-90 60 60)">
                                 @for (var i = 0; i < values.Count; i++)
                                 {
                                     var slice = total > 0 ? values[i] * circumference / total : 0;
@@ -114,8 +115,13 @@
                                     <circle cx="60" cy="60" r="@radius" fill="none" stroke="@RingColor(colors[i])" stroke-width="24" stroke-dasharray="@dashArray" stroke-dashoffset="@dashOffset" />
                                     cursor += slice;
                                 }
-                            </g>
-                        </svg>
+                                </g>
+                            </svg>
+                            <div class="chart-ring-center" aria-hidden="true">
+                                <span class="chart-ring-total">@total.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)</span>
+                                <span class="chart-ring-caption">Total</span>
+                            </div>
+                        </div>
                         <ul class="chart-ring-legend">
                             @for (var i = 0; i < labels.Count; i++)
                             {

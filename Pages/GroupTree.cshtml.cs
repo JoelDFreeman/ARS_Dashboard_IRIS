@@ -39,23 +39,29 @@ public class GroupTreeModel : DashboardPageModel
         // loading here too. Prefer the session-cached (already per-user-scoped) dashboard summary
         // to avoid re-querying Active Roles; otherwise build it via the shared superset projection
         // so the same per-user visibility model as the main dashboard applies here.
-        var cachedJson = GetCachedSummaryJson();
-        if (!string.IsNullOrEmpty(cachedJson))
+        if (ArConfig.CurrentValue.DemoMode)
         {
-            Summary = System.Text.Json.JsonSerializer.Deserialize<DashboardSummary>(cachedJson) ?? new DashboardSummary();
+            Summary = DemoDataService.CreateSummary();
         }
         else
         {
-            var summaryToken = GetAccessToken()!;
-            await LoadFullSummaryAsync(summaryToken);
+            var cachedJson = GetCachedSummaryJson();
+            if (!string.IsNullOrEmpty(cachedJson))
+            {
+                Summary = System.Text.Json.JsonSerializer.Deserialize<DashboardSummary>(cachedJson) ?? new DashboardSummary();
+            }
+            else
+            {
+                var summaryToken = GetAccessToken()!;
+                await LoadFullSummaryAsync(summaryToken);
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(Group))
         {
-            var token = GetAccessToken()!;
-            try
+            if (ArConfig.CurrentValue.DemoMode)
             {
-                var group = await ArService.ResolveGroupAsync(token, Group.Trim());
+                var group = TemporaryMetadata.ResolveGroup(Group.Trim());
                 if (group == null)
                 {
                     LookupError = $"No group found matching '{Group}'.";
@@ -66,9 +72,26 @@ public class GroupTreeModel : DashboardPageModel
                     RootDn = group.Value.Dn;
                 }
             }
-            catch (Exception ex)
+            else
             {
-                LookupError = $"Lookup failed ({ex.GetType().Name}: {ex.Message}).";
+                var token = GetAccessToken()!;
+                try
+                {
+                    var group = await ArService.ResolveGroupAsync(token, Group.Trim());
+                    if (group == null)
+                    {
+                        LookupError = $"No group found matching '{Group}'.";
+                    }
+                    else
+                    {
+                        RootName = group.Value.Name;
+                        RootDn = group.Value.Dn;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LookupError = $"Lookup failed ({ex.GetType().Name}: {ex.Message}).";
+                }
             }
         }
 
@@ -81,11 +104,17 @@ public class GroupTreeModel : DashboardPageModel
         var redirect = await InitializePageAsync();
         if (redirect != null) return redirect;
 
-        var token = GetAccessToken()!;
         var maxDepth = ArConfig.CurrentValue.MaxGroupTreeDepth;
 
         // The clicked node itself is an ancestor for cycle detection within this branch.
         var ancestors = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { dn };
+        if (ArConfig.CurrentValue.DemoMode)
+        {
+            var demoChildren = TemporaryMetadata.ExpandGroupChildren(dn, depth, maxDepth, ancestors);
+            return Partial("_GroupTreeNodes", demoChildren);
+        }
+
+        var token = GetAccessToken()!;
         var children = await ArService.ExpandGroupChildrenAsync(token, dn, depth, maxDepth, ancestors);
 
         return Partial("_GroupTreeNodes", children);

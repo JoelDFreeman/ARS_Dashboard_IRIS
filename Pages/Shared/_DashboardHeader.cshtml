@@ -33,11 +33,41 @@
     var showEntraNav = ViewData["ShowEntraNav"] as bool? ?? false;
     var showExchangeNav = ViewData["ShowExchangeNav"] as bool? ?? false;
     var showLicensingNav = ViewData["ShowLicensingNav"] as bool? ?? false;
+    var showDashboardNavigation = ViewData["ShowDashboardNavigation"] as bool? ?? true;
 }
+<script src="js/iris-chart-theme.js" asp-append-version="true"></script>
 @if (headerRight != "none")
 {
     <partial name="_Sidebar" />
 }
+@if (currentPath != "/")
+{
+<header class="ad-app-bar iris-page-app-bar@(headerRight == "none" ? " iris-page-app-bar-sidebarless" : "")">
+    @if (headerRight != "none")
+    {
+    <button class="ad-sidebar-toggle" id="sidebarToggle" type="button" aria-label="Collapse navigation" aria-expanded="true">
+        <svg class="sidebar-toggle-icon" viewBox="0 0 18 14" width="18" height="14" aria-hidden="true"><path d="M16 13V14H2V13H16ZM17 12V2C17 1.44771 16.5523 1 16 1H2C1.44772 1 1 1.44772 1 2V12C1 12.5523 1.44771 13 2 13V14C0.89543 14 0 13.1046 0 12V2C0 0.89543 0.89543 0 2 0H16C17.1046 0 18 0.89543 18 2V12C18 13.1046 17.1046 14 16 14V13C16.5523 13 17 12.5523 17 12Z" fill="currentColor"/><rect class="sidebar-toggle-pane" x="2" y="2" width="8" height="10" rx="1" fill="currentColor"/></svg>
+    </button>
+    }
+    <nav class="ad-breadcrumb" aria-label="Breadcrumb">
+        <span>Active Roles</span><span aria-hidden="true">/</span><span aria-current="page">@headerTitle</span>
+    </nav>
+    @await Html.PartialAsync("_DashboardToolbar")
+</header>
+<script>
+    (function () {
+        var sidebarToggle = document.getElementById('sidebarToggle');
+        if (!sidebarToggle) return;
+        sidebarToggle.addEventListener('click', function () {
+            var collapsed = document.body.classList.toggle('ad-sidebar-collapsed');
+            this.setAttribute('aria-expanded', String(!collapsed));
+            this.setAttribute('aria-label', collapsed ? 'Expand navigation' : 'Collapse navigation');
+        });
+    })();
+</script>
+}
+else
+{
 <header class="rpt-header">
     <div class="hdr-left">
         <span class="hdr-logo">
@@ -75,7 +105,8 @@
         </div>
     }
 </header>
-@if (headerRight == "toolbar")
+}
+@if (headerRight == "toolbar" && showDashboardNavigation && currentPath == "/")
 {
     <nav class="dashboard-nav" aria-label="Dashboard navigation">
         <a class="@(currentPath == "/" ? "active" : "")" href="@(appBase)/">
@@ -103,4 +134,8 @@
             <span>Licensing</span>
         </a> }
     </nav>
+}
+@if (Model is ActiveRolesDashboard.Pages.DashboardPageModel dashboardModel)
+{
+    <partial name="_KpiDetailModal" model="dashboardModel" />
 }
